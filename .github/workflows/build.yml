@@ -39,7 +39,7 @@ jobs:
       - name: Prepare Cordova Project Structure
         run: |
           rm -rf cordova_app
-          mkdir -p www res/anim res/drawable
+          mkdir -p www res/anim res/drawable res/layout
           printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<set xmlns:android="http://schemas.android.com/apk/res/android" android:interpolator="@android:anim/decelerate_interpolator"><translate android:fromYDelta="-100%p" android:toYDelta="-12%p" android:duration="600" /><alpha android:fromAlpha="0.0" android:toAlpha="1.0" android:duration="600" /></set>' > res/anim/drop_from_top_above_center.xml
           for item in *; do
             if [ "$item" != "www" ] && [ "$item" != "config.xml" ] && [ "$item" != "res" ] && [ "$item" != "icon.png" ] && [ "$item" != "splash.png" ] && [ "$item" != ".github" ]; then
@@ -49,14 +49,24 @@ jobs:
           if [ ! -f "www/index.html" ] && [ -f "index.html" ]; then
             cp index.html www/index.html
           fi
-          if [ ! -f "icon.png" ] && [ -f "www/logo.png" ]; then
-            cp www/logo.png icon.png
+          if [ ! -f "res/drawable/logo.png" ]; then
+            if [ -f "www/logo.png" ]; then
+              cp www/logo.png res/drawable/logo.png
+            elif [ -f "logo.png" ]; then
+              cp logo.png res/drawable/logo.png
+            elif [ -f "icon.png" ]; then
+              cp icon.png res/drawable/logo.png
+            elif [ -f "splash.png" ]; then
+              cp splash.png res/drawable/logo.png
+            else
+              printf '\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\rIDATx\x9cc\xf8\xff\xff?\x00\x05\xfe\x02\xfe\xdc\xccY\xe7\x00\x00\x00\x00IEND\xaeB`\x82' > res/drawable/logo.png
+            fi
           fi
-          if [ ! -f "splash.png" ] && [ -f "www/logo.png" ]; then
-            cp www/logo.png splash.png
+          if [ ! -f "icon.png" ]; then
+            cp res/drawable/logo.png icon.png
           fi
-          if [ ! -f "res/drawable/logo.png" ] && [ -f "www/logo.png" ]; then
-            cp www/logo.png res/drawable/logo.png
+          if [ ! -f "splash.png" ]; then
+            cp res/drawable/logo.png splash.png
           fi
 
       - name: Create Cordova App & Add Android Platform
@@ -72,6 +82,10 @@ jobs:
           fi
           if [ -d "res" ]; then
             cp -r res cordova_app/res
+          fi
+          mkdir -p cordova_app/res/drawable
+          if [ ! -f "cordova_app/res/drawable/logo.png" ] && [ -f "res/drawable/logo.png" ]; then
+            cp res/drawable/logo.png cordova_app/res/drawable/logo.png
           fi
           if [ -f "icon.png" ]; then
             cp icon.png cordova_app/icon.png
