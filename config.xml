@@ -12,7 +12,6 @@
     <allow-intent href="whatsapp:*" />
     <allow-intent href="com.google.android.apps.docs:*" />
 
-    <!-- Splash Screen Configuration (~2s timing, light mixed color #eef7ff) -->
     <preference name="SplashScreen" value="screen" />
     <preference name="SplashScreenDelay" value="2000" />
     <preference name="AutoHideSplashScreen" value="true" />
@@ -22,8 +21,6 @@
     <preference name="ShowSplashScreenSpinner" value="false" />
     <preference name="AndroidWindowSplashScreenAnimatedIcon" value="splash.png" />
     <preference name="AndroidWindowSplashScreenBackground" value="#eef7ff" />
-
-    <!-- PDF & File Storage Configuration -->
     <preference name="AndroidPersistentFileLocation" value="Compatibility" />
     <preference name="AllowInlineMediaPlayback" value="true" />
 
@@ -31,9 +28,8 @@
         <allow-intent href="market:*" />
         <icon src="icon.png" />
         <preference name="android-minSdkVersion" value="24" />
-        <preference="android-targetSdkVersion" value="34" />
+        <preference name="android-targetSdkVersion" value="34" />
 
-        <!-- PDF Generation, Storage, View & Share Permissions -->
         <config-file target="AndroidManifest.xml" parent="/*">
             <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
             <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
@@ -54,9 +50,13 @@
             <package android:name="com.google.android.apps.docs" />
             <package android:name="com.adobe.reader" />
         </config-file>
+
+        <resource-file src="res/drawable/logo.png" target="app/src/main/res/drawable/logo.png" />
+        <resource-file src="res/drawable/splash_mixed_bg.xml" target="app/src/main/res/drawable/splash_mixed_bg.xml" />
+        <resource-file src="res/anim/drop_from_top_above_center.xml" target="app/src/main/res/anim/drop_from_top_above_center.xml" />
+        <resource-file src="res/layout/splash_screen.xml" target="app/src/main/res/layout/splash_screen.xml" />
     </platform>
 
-    <!-- PDF File Save, Open in Viewer & Share Plugins -->
     <plugin name="cordova-plugin-file" spec="^8.1.0" />
     <plugin name="cordova-plugin-file-opener2" spec="^4.0.0" />
     <plugin name="cordova-plugin-x-socialsharing" spec="^6.0.4" />
