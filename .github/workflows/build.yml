@@ -80,6 +80,22 @@ jobs:
           rm -rf cordova_app/www/*
           cp -r www/* cordova_app/www/
 
+          mkdir -p cordova_app/res/anim
+          cat << 'EOF' > cordova_app/res/anim/drop_from_top_above_center.xml
+<?xml version="1.0" encoding="utf-8"?>
+<set xmlns:android="http://schemas.android.com/apk/res/android"
+    android:interpolator="@android:anim/decelerate_interpolator">
+    <translate
+        android:fromYDelta="-100%p"
+        android:toYDelta="-12%p"
+        android:duration="600" />
+    <alpha
+        android:fromAlpha="0.0"
+        android:toAlpha="1.0"
+        android:duration="600" />
+</set>
+EOF
+
           cd cordova_app
           cordova platform add android@13.0.0 --no-telemetry
 
