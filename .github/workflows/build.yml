@@ -44,7 +44,7 @@ jobs:
         run: |
           mkdir -p www
           for item in *; do
-            if [ "$item" != "www" ] && [ "$item" != "config.xml" ] && [ "$item" != "res" ] && [ "$item" != "icon.png" ] && [ "$item" != "splash.png" ] && [ "$item" != ".github" ]; then
+            if [ "$item" != "www" ] && [ "$item" != "config.xml" ] && [ "$item" != "res" ] && [ "$item" != "icon.png" ] && [ "$item" != "splash.png" ] && [ "$item" != ".github" ] && [ "$item" != "cordova_app" ]; then
               mv "$item" www/ 2>/dev/null || true
             fi
           done
@@ -65,7 +65,9 @@ jobs:
       - name: Create Cordova App & Add Android Platform
         run: |
           cordova create cordova_app com.faruk.msadvancedmobicare "MS ADVANCED MOBICARE"
-          cp config.xml cordova_app/config.xml
+          if [ -f "config.xml" ]; then
+            cp config.xml cordova_app/config.xml
+          fi
           if [ -d "res" ]; then
             cp -r res cordova_app/res
           fi
