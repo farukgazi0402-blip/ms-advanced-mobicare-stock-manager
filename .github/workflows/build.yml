@@ -38,9 +38,10 @@ jobs:
 
       - name: Prepare Cordova Project Structure
         run: |
+          rm -rf cordova_app
           mkdir -p www
           for item in *; do
-            if [ "$item" != "www" ] && [ "$item" != "config.xml" ] && [ "$item" != "res" ] && [ "$item" != "icon.png" ] && [ "$item" != "splash.png" ] && [ "$item" != ".github" ] && [ "$item" != "cordova_app" ]; then
+            if [ "$item" != "www" ] && [ "$item" != "config.xml" ] && [ "$item" != "res" ] && [ "$item" != "icon.png" ] && [ "$item" != "splash.png" ] && [ "$item" != ".github" ]; then
               mv "$item" www/ 2>/dev/null || true
             fi
           done
