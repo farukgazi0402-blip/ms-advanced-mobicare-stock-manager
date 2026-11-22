@@ -26,6 +26,16 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          build-tools-version: '34.0.0'
+          packages: |
+            platform-tools
+            platforms;android-34
+            build-tools;34.0.0
+
+      - name: Accept All Android SDK Licenses
+        run: |
+          yes | sdkmanager --licenses || true
 
       - name: Install Apache Cordova Globally
         run: npm install -g cordova
