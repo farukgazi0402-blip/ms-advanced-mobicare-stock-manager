@@ -1,0 +1,84 @@
+name: Build Android APK - MS ADVANCED MOBICARE
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Java (JDK 17)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Apache Cordova Globally
+        run: npm install -g cordova
+
+      - name: Prepare Cordova Project Structure
+        run: |
+          mkdir -p www
+          for item in *; do
+            if [ "$item" != "www" ] && [ "$item" != "config.xml" ] && [ "$item" != "res" ] && [ "$item" != "icon.png" ] && [ "$item" != "splash.png" ] && [ "$item" != ".github" ]; then
+              mv "$item" www/ 2>/dev/null || true
+            fi
+          done
+          if [ ! -f "www/index.html" ] && [ -f "index.html" ]; then
+            cp index.html www/index.html
+          fi
+          if [ ! -f "icon.png" ] && [ -f "www/logo.png" ]; then
+            cp www/logo.png icon.png
+          fi
+          if [ ! -f "splash.png" ] && [ -f "www/logo.png" ]; then
+            cp www/logo.png splash.png
+          fi
+          mkdir -p res/drawable
+          if [ ! -f "res/drawable/logo.png" ] && [ -f "www/logo.png" ]; then
+            cp www/logo.png res/drawable/logo.png
+          fi
+
+      - name: Create Cordova App & Add Android Platform
+        run: |
+          cordova create cordova_app com.faruk.msadvancedmobicare "MS ADVANCED MOBICARE"
+          cp config.xml cordova_app/config.xml
+          if [ -d "res" ]; then
+            cp -r res cordova_app/res
+          fi
+          if [ -f "icon.png" ]; then
+            cp icon.png cordova_app/icon.png
+          fi
+          if [ -f "splash.png" ]; then
+            cp splash.png cordova_app/splash.png
+          fi
+          rm -rf cordova_app/www/*
+          cp -r www/* cordova_app/www/
+
+          cd cordova_app
+          cordova platform add android@13.0.0 --no-telemetry
+
+      - name: Build Debug Android APK
+        run: |
+          cd cordova_app
+          cordova build android --debug --no-telemetry
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MS-ADVANCED-MOBICARE-APK
+          path: cordova_app/platforms/android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
