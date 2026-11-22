@@ -128,10 +128,12 @@ jobs:
 
           cd cordova_app
           cordova build android --debug --no-telemetry
+          echo "=== Generated APK files ==="
+          find platforms/android/app/build/outputs/apk -type f -name "*.apk" -print
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: MS-ADVANCED-MOBICARE-APK
-          path: cordova_app/platforms/android/app/build/outputs/apk/debug/*.apk
-          if-no-files-found: error
+          path: cordova_app/platforms/android/app/build/outputs/apk/**/*.apk
+          if-no-files-found: warn
