@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<widget id="com.faruk.msadvancedmobicare" version="1.0.0" xmlns="http://www.w3.org/ns/widgets" xmlns:android="http://schemas.android.com/apk/res/android" xmlns:cdv="http://cordova.apache.org/ns/1.0">
+<widget id="com.faruk.msadvancedmobicare" version="1.0.0" xmlns="http://www.w3.org/ns/widgets" xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools" xmlns:cdv="http://cordova.apache.org/ns/1.0">
     <name>MS ADVANCED MOBICARE</name>
     <description>MS ADVANCED MOBICARE application with QR/Barcode scanner, Bluetooth printer support, PDF generation, file opening, and sharing support</description>
     <author email="support@example.com" href="">Faruk Gazi</author>
@@ -41,16 +41,16 @@
             <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 
             <!-- Bluetooth (Android 12+ & Legacy) -->
-            <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
-            <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+            <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" tools:node="replace" />
+            <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" tools:node="replace" />
             <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
             <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
             <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
-            <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="30" />
+            <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="30" tools:node="replace" />
 
             <!-- Storage / PDF -->
-            <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
-            <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+            <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" tools:node="replace" />
+            <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" tools:node="replace" />
             <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
         </config-file>
 
