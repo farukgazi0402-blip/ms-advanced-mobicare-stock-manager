@@ -21,6 +21,7 @@
     <preference name="ShowSplashScreenSpinner" value="false" />
     <preference name="AndroidWindowSplashScreenAnimatedIcon" value="splash.png" />
     <preference name="AndroidWindowSplashScreenBackground" value="#eef7ff" />
+    <preference name="BackgroundColor" value="0xFF1E88E5" />
     <preference name="AndroidPersistentFileLocation" value="Compatibility" />
     <preference name="AllowInlineMediaPlayback" value="true" />
 
@@ -29,6 +30,8 @@
         <icon src="icon.png" />
         <preference name="android-minSdkVersion" value="24" />
         <preference name="android-targetSdkVersion" value="34" />
+        <preference name="StatusBarOverlaysWebView" value="false" />
+        <preference name="StatusBarBackgroundColor" value="#1E88E5" />
 
         <config-file target="AndroidManifest.xml" parent="/manifest">
             <!-- Camera & QR/Barcode Scanner -->
@@ -80,4 +83,7 @@
     <plugin name="cordova-plugin-android-permissions" />
     <plugin name="phonegap-plugin-barcodescanner" />
     <plugin name="cordova-plugin-bluetooth-serial" />
+
+    <!-- StatusBar Color -->
+    <plugin name="cordova-plugin-statusbar" />
 </widget>
