@@ -119,6 +119,7 @@ jobs:
 
           cd cordova_app
           cordova platform add android@13.0.0 --no-telemetry
+          cordova prepare android --no-telemetry
 
       - name: Build Debug Android APK
         run: |
