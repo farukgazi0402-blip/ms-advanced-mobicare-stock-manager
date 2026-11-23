@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#ffffff" />
   <meta http-equiv="Permissions-Policy" content="camera=*, bluetooth=*" />
   <title>MS ADVANCED MOBICARE — Stock Manager</title>
   <style>
@@ -13301,7 +13302,18 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
 
       window.MSAppNativeBridge.printEscPosText = printEscPosText;
 
+      function syncAppStatusBarColor() {
+        if (window.StatusBar) {
+          try {
+            window.StatusBar.overlaysWebView(false);
+            window.StatusBar.backgroundColorByHexString("#ffffff");
+            window.StatusBar.styleDefault();
+          } catch (e) {}
+        }
+      }
+
       document.addEventListener("deviceready", async () => {
+        syncAppStatusBarColor();
         await requestAllAndroidPermissions();
         if (window.MSAppNativeBridge.connectedMac && window.bluetoothSerial) {
           connectBluetoothPrinterNative(
