@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta http-equiv="Permissions-Policy" content="camera=*" />
+  <meta http-equiv="Permissions-Policy" content="camera=*, bluetooth=*" />
   <title>MS ADVANCED MOBICARE — Stock Manager</title>
   <style>
     :root {
@@ -49,7 +49,7 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       font-size: 15px;
       line-height: 1.4;
-      overflow-x: hidden;
+      overflow-x: clip;
     }
 
     .no-wrap {
@@ -75,19 +75,25 @@
       margin: 0 auto;
       min-height: 100vh;
       background: #f1f5f9;
+      padding-top: var(--header-h, 60px);
       padding-bottom: 142px;
       position: relative;
     }
 
     /* Clean Top Header with Soft Mixed Background Across Full Bar */
     .top-header {
-      position: sticky;
+      position: fixed;
       top: 0;
-      z-index: 30;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 780px;
+      height: 60px;
+      z-index: 35;
       background: #ffffff;
       border-bottom: 1px solid rgba(199, 210, 254, 0.85);
       box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
-      padding: 11px 14px;
+      padding: 10px 14px;
       display: flex;
       align-items: center;
       gap: 10px;
@@ -306,6 +312,16 @@
       border-color: #ffe4e6;
     }
 
+    .drawer-item-btn:nth-child(9) {
+      background: #f8fafc;
+      border-color: #fde68a;
+    }
+
+    .drawer-item-btn:nth-child(10) {
+      background: #f8fafc;
+      border-color: #ffe4e6;
+    }
+
     .drawer-item-btn:hover,
     .drawer-item-btn:active {
       transform: translateX(3px);
@@ -357,13 +373,11 @@
 
     /* Main Content & Smart Horizontal Page Slide Animations */
     .main-content {
-      padding: 16px;
-      overflow-x: hidden;
+      padding: 12px 16px 16px 16px;
     }
 
     .tab-panel {
       display: none;
-      will-change: transform, opacity;
     }
 
     .tab-panel.active {
@@ -608,28 +622,82 @@
       border-radius: 8px;
     }
 
+    .home-sticky-stats-wrap {
+      position: -webkit-sticky;
+      position: sticky;
+      top: var(--header-h, 60px);
+      z-index: 26;
+      background: #f1f5f9;
+      margin: -12px -16px 12px -16px;
+      padding: 10px 16px 10px 16px;
+      border-bottom: 1px solid rgba(203, 213, 225, 0.65);
+    }
+
+    .home-sticky-stats-wrap .stats-grid {
+      margin-bottom: 0;
+    }
+
     .filter-stack {
+      position: fixed;
+      top: var(--header-h, 60px);
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 780px;
+      z-index: 32;
+      background: #f1f5f9;
+      margin: 0;
+      padding: 10px 16px 10px 16px;
+      border-bottom: 1px solid rgba(203, 213, 255, 0.85);
+      box-shadow: 0 3px 10px rgba(15, 23, 42, 0.05);
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      margin-bottom: 14px;
+      gap: 9px;
+    }
+
+    #tab-products {
+      padding-top: var(--products-filter-h, 114px);
+    }
+
+    .categories-sticky-header {
+      position: fixed;
+      top: var(--header-h, 60px);
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 780px;
+      z-index: 32;
+      background: #f1f5f9;
+      margin: 0;
+      padding: 10px 16px 10px 16px;
+      border-bottom: 1px solid rgba(203, 213, 255, 0.85);
+      box-shadow: 0 3px 10px rgba(15, 23, 42, 0.05);
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+
+    #categoriesListView {
+      padding-top: var(--categories-filter-h, 88px);
     }
 
     .search-box {
       position: relative;
       display: flex;
       align-items: center;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-light);
+      background: linear-gradient(135deg, #f8faff 0%, #eef2ff 100%);
+      border: 1px solid #c7d2fe;
       border-radius: var(--radius-md);
       padding: 0 8px 0 12px;
-      box-shadow: var(--shadow-sm);
+      box-shadow: 0 3px 10px rgba(79, 70, 229, 0.06);
       gap: 6px;
+      transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
     }
 
     .search-box:focus-within {
+      background: #ffffff;
       border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.13);
     }
 
     .search-icon {
@@ -697,9 +765,9 @@
 
     .category-selector-btn {
       width: 100%;
-      background: #1e293b;
-      color: #ffffff;
-      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: #eef2ff;
+      color: #1e1b4b;
+      border: 1px solid #c7d2fe;
       border-radius: var(--radius-lg);
       padding: 10px 11px;
       display: flex;
@@ -707,7 +775,7 @@
       justify-content: space-between;
       gap: 6px;
       cursor: pointer;
-      box-shadow: 0 6px 16px rgba(30, 41, 59, 0.16);
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.08);
       min-width: 0;
     }
 
@@ -739,15 +807,16 @@
       width: 28px;
       height: 28px;
       border-radius: 9px;
-      background: rgba(255, 255, 255, 0.14);
+      background: #e0e7ff;
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #a5b4fc;
+      color: #4f46e5;
       flex-shrink: 0;
     }
 
     .company-selector-btn .cat-sel-badge-icon {
+      background: rgba(255, 255, 255, 0.14);
       color: #6ee7b7;
     }
 
@@ -763,7 +832,7 @@
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      color: #c7d2fe;
+      color: #4f46e5;
       line-height: 1.1;
     }
 
@@ -774,12 +843,16 @@
     .cat-sel-current {
       font-size: 13px;
       font-weight: 800;
-      color: #ffffff;
+      color: #1e1b4b;
       margin-top: 2px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       max-width: 100%;
+    }
+
+    .company-selector-btn .cat-sel-current {
+      color: #ffffff;
     }
 
     .cat-sel-right {
@@ -790,17 +863,28 @@
     }
 
     .cat-sel-count {
-      background: rgba(255, 255, 255, 0.16);
-      color: #ffffff;
+      background: #ffffff;
+      color: #3730a3;
+      border: 1px solid #c7d2fe;
       font-size: 11px;
       font-weight: 800;
       padding: 3px 7px;
       border-radius: 999px;
     }
 
+    .company-selector-btn .cat-sel-count {
+      background: rgba(255, 255, 255, 0.16);
+      color: #ffffff;
+      border: none;
+    }
+
     .cat-sel-chevron {
       display: flex;
       align-items: center;
+      color: #4f46e5;
+    }
+
+    .company-selector-btn .cat-sel-chevron {
       color: #e0e7ff;
     }
 
@@ -1312,24 +1396,32 @@
       border: 1.5px dashed var(--border-mid);
       background: var(--bg-subtle);
       border-radius: 12px;
-      padding: 10px;
+      padding: 11px;
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
+      align-items: flex-start;
+      gap: 12px;
     }
 
-    .prod-img-preview-wrap {
+    .prod-img-right-col {
+      flex: 1 1 auto;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 9px;
+    }
+
+    .prod-img-actions-row {
       display: flex;
       align-items: center;
-      gap: 10px;
-      min-width: 0;
-      flex: 1;
+      gap: 8px;
+      flex-wrap: wrap;
+      width: 100%;
     }
 
     .prod-img-preview {
-      width: 54px;
-      height: 72px;
+      width: 62px;
+      height: 82px;
       aspect-ratio: 3 / 4;
       border-radius: 9px;
       object-fit: cover;
@@ -2616,6 +2708,10 @@
         <button type="button" class="drawer-item-btn" data-drawer-action="total-product-value">
           <span class="no-wrap">Total Product Value</span>
         </button>
+        <button type="button" class="drawer-item-btn" data-drawer-action="low-stock-report">
+          <span class="no-wrap">Low Stock Report</span>
+          <span class="cat-sel-count no-wrap" style="background:#fffbeb;color:#d97706;" id="drawerLowStockCount">0</span>
+        </button>
         <button type="button" class="drawer-item-btn" data-drawer-action="warranty">
           <span class="no-wrap">Warranty Claims</span>
           <span class="cat-sel-count no-wrap" style="background:#f1f5f9;color:#334155;" id="drawerWarrantyCount">0</span>
@@ -2638,21 +2734,23 @@
     <main class="main-content">
       <!-- HOME TAB -->
       <section id="tab-home" class="tab-panel active">
-        <div class="stats-grid">
-          <div class="stat-card home-premium-stat-items">
-            <p class="stat-label no-wrap" style="color:#3730a3;">Total Items</p>
-            <p id="statTotalItems" class="stat-value no-wrap">0</p>
-            <p id="statTotalCats" class="stat-sub no-wrap" style="color:#4f46e5;">0 Categories</p>
-          </div>
-          <div class="stat-card home-premium-stat-stock">
-            <p class="stat-label no-wrap" style="color:#065f46;">Stock Qty</p>
-            <p id="statStockQty" class="stat-value emerald no-wrap">0</p>
-            <p id="statLowStock" class="stat-sub no-wrap" style="color:#059669;">0 Low / Out</p>
-          </div>
-          <div class="stat-card home-premium-stat-sale">
-            <p class="stat-label no-wrap" style="color:#9d174d;">Sale Qty</p>
-            <p id="statSaleQty" class="stat-value no-wrap" style="color:#be185d;">0</p>
-            <p id="statSaleSub" class="stat-sub no-wrap" style="color:#db2777;">Total Sold</p>
+        <div class="home-sticky-stats-wrap">
+          <div class="stats-grid">
+            <div class="stat-card home-premium-stat-items">
+              <p class="stat-label no-wrap" style="color:#3730a3;">Total Items</p>
+              <p id="statTotalItems" class="stat-value no-wrap">0</p>
+              <p id="statTotalCats" class="stat-sub no-wrap" style="color:#4f46e5;">0 Categories</p>
+            </div>
+            <div class="stat-card home-premium-stat-stock">
+              <p class="stat-label no-wrap" style="color:#065f46;">Stock Qty</p>
+              <p id="statStockQty" class="stat-value emerald no-wrap">0</p>
+              <p id="statLowStock" class="stat-sub no-wrap" style="color:#059669;">0 Low / Out</p>
+            </div>
+            <div class="stat-card home-premium-stat-sale">
+              <p class="stat-label no-wrap" style="color:#9d174d;">Sale Qty</p>
+              <p id="statSaleQty" class="stat-value no-wrap" style="color:#be185d;">0</p>
+              <p id="statSaleSub" class="stat-sub no-wrap" style="color:#db2777;">Total Sold</p>
+            </div>
           </div>
         </div>
 
@@ -2775,9 +2873,21 @@
       <!-- CATEGORIES TAB -->
       <section id="tab-categories" class="tab-panel">
         <div id="categoriesListView">
-          <div class="section-row">
-            <h2 class="section-title no-wrap">Product Categories</h2>
-            <span id="categoryTabTotal" class="cat-sel-count no-wrap" style="background:#e2e8f0;color:#0f172a;">0</span>
+          <div class="categories-sticky-header">
+            <div class="search-box">
+              <span class="search-icon" aria-hidden="true" style="color:#4f46e5;">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+              </span>
+              <input type="text" id="categoryTabSearchInput" class="search-input" placeholder="Search category or company..." autocomplete="off" />
+              <button type="button" id="clearCategoryTabSearchBtn" class="search-clear no-wrap" aria-label="Clear category search">&times;</button>
+            </div>
+            <div class="section-row" style="margin-bottom:0;">
+              <h2 class="section-title no-wrap">Product Categories</h2>
+              <span id="categoryTabTotal" class="cat-sel-count no-wrap" style="background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe;">0</span>
+            </div>
           </div>
           <div id="categoryManageList" class="cat-manage-list"></div>
         </div>
@@ -3082,6 +3192,49 @@
       </div>
 
       <div id="tpvProductValueList" class="product-list"></div>
+    </div>
+  </div>
+
+  <!-- Full-Page Low Stock Report Screen -->
+  <div id="lowStockReportFullPage" class="fullpage-overlay" role="dialog" aria-modal="true" aria-labelledby="lsrFullPageTitle">
+    <div class="fullpage-header">
+      <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+        <button type="button" id="closeLsrFullPageBtn" class="btn-secondary no-wrap">&larr; Back</button>
+        <h2 id="lsrFullPageTitle" class="modal-title no-wrap">Low Stock Report</h2>
+      </div>
+      <span id="lsrHeaderCountBadge" class="warranty-days-pill expired no-wrap">0 Low</span>
+    </div>
+    <div class="fullpage-body">
+      <div style="background:#ffffff;border:1px solid var(--border-light);border-radius:14px;padding:11px 12px;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:9px;">
+        <div class="warranty-search-row" style="box-shadow:none;padding:2px 6px 2px 10px;">
+          <span class="search-icon" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </span>
+          <input type="text" id="lsrSearchInput" class="search-input" style="padding:8px 0;" placeholder="Search product, code, category, location..." autocomplete="off" />
+        </div>
+
+        <div>
+          <label for="lsrCustomQtyInput" class="field-label no-wrap">Custom Stock Qty Filter (Show Stock &le; Qty)</label>
+          <div class="auto-code-wrap">
+            <input type="number" id="lsrCustomQtyInput" class="text-input" min="0" step="1" placeholder="Enter stock qty (e.g., 5)..." />
+            <button type="button" id="lsrApplyCustomQtyBtn" class="btn-primary no-wrap">Apply</button>
+            <button type="button" id="lsrResetCustomQtyBtn" class="btn-secondary no-wrap" style="display:none;">Reset</button>
+          </div>
+          <div id="lsrActiveModeHint" class="live-match-sub" style="margin-top:4px;font-weight:700;color:#4f46e5;">Mode: Product Minimum Stock Threshold (Lowest stock first)</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <button type="button" id="lsrTabLowStockBtn" class="warranty-choice-btn active-yes no-wrap" style="padding:9px 8px;font-size:13px;">Low Stock (<span id="lsrLowTabCount">0</span>)</button>
+        <button type="button" id="lsrTabBoughtBtn" class="warranty-choice-btn no-wrap" style="padding:9px 8px;font-size:13px;">Bought (<span id="lsrBoughtTabCount">0</span>)</button>
+      </div>
+
+      <div id="lsrSummaryStrip" class="payment-summary-strip" style="flex-wrap:wrap;"></div>
+
+      <div id="lsrProductsList" class="product-list"></div>
     </div>
   </div>
 
@@ -3635,17 +3788,16 @@
           <select id="prodCompanySelect" class="text-input"></select>
         </div>
 
-        <div id="productItemNoFieldWrap">
-          <label for="prodItemNo" class="field-label no-wrap">Item No. *</label>
-          <div class="auto-code-wrap">
+        <div id="productItemLocRow" class="field-row-2">
+          <div id="productItemNoFieldWrap">
+            <label for="prodItemNo" class="field-label no-wrap">Item No. *</label>
             <input type="text" id="prodItemNo" class="text-input" placeholder="Auto" />
-            <button type="button" id="regenItemNoBtn" class="btn-regen-code no-wrap">Auto</button>
           </div>
-        </div>
 
-        <div id="productLocationFieldWrap">
-          <label for="prodLocation" class="field-label no-wrap">Location No. *</label>
-          <input type="text" id="prodLocation" class="text-input" placeholder="e.g., A1" required />
+          <div id="productLocationFieldWrap">
+            <label for="prodLocation" class="field-label no-wrap">Location No. *</label>
+            <input type="number" id="prodLocation" class="text-input" inputmode="numeric" pattern="[0-9]*" min="0" step="1" placeholder="e.g., 1" required />
+          </div>
         </div>
 
         <div>
@@ -3659,22 +3811,22 @@
         <div id="productImageFieldWrap">
           <label class="field-label no-wrap">Product Image (Auto-Cropped 3:4 &amp; Optimized)</label>
           <div class="prod-img-picker-box">
-            <div class="prod-img-preview-wrap">
-              <img id="prodImagePreview" class="prod-img-preview" alt="Product preview" />
-              <div class="live-match-main">
-                <div id="prodImageStatusText" class="live-match-title">No image selected</div>
-                <div class="live-match-sub">Auto center-cropped (3:4) with sharp quality &amp; low size</div>
+            <img id="prodImagePreview" class="prod-img-preview" alt="Product preview" />
+            <div class="prod-img-right-col">
+              <div style="width:100%;min-width:0;">
+                <div id="prodImageStatusText" class="live-match-title word-wrap-clean">No image selected</div>
+                <div class="live-match-sub word-wrap-clean" style="margin-top:2px;">Auto center-cropped (3:4) with sharp quality &amp; low size</div>
               </div>
-            </div>
-            <div class="no-wrap" style="display:flex;gap:6px;">
-              <label for="prodImageInput" class="btn-primary no-wrap" style="cursor:pointer;">Select Image</label>
-              <button type="button" id="removeProdImageBtn" class="btn-danger no-wrap" style="display:none;">Remove</button>
-              <input type="file" id="prodImageInput" accept="image/*" style="display:none;" />
+              <div class="prod-img-actions-row">
+                <label for="prodImageInput" class="btn-primary no-wrap" style="cursor:pointer;">Select Image</label>
+                <button type="button" id="removeProdImageBtn" class="btn-danger no-wrap" style="display:none;">Remove</button>
+                <input type="file" id="prodImageInput" accept="image/*" style="display:none;" />
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="field-row-3">
+        <div class="field-row-2">
           <div>
             <label for="prodPrice" class="field-label no-wrap">Price (₹) *</label>
             <input type="number" id="prodPrice" class="text-input" min="0" step="0.01" value="0" required />
@@ -3683,9 +3835,16 @@
             <label for="prodStockQty" class="field-label no-wrap">Stock Qty *</label>
             <input type="number" id="prodStockQty" class="text-input" min="0" step="1" value="1" required />
           </div>
+        </div>
+
+        <div class="field-row-2">
           <div>
             <label for="prodSaleQty" class="field-label no-wrap">Sale Qty *</label>
             <input type="number" id="prodSaleQty" class="text-input" min="0" step="1" value="0" required />
+          </div>
+          <div>
+            <label for="prodMinStockQty" class="field-label no-wrap">Min Stock Qty *</label>
+            <input type="number" id="prodMinStockQty" class="text-input" min="0" step="1" value="3" placeholder="e.g., 2, 5, 10..." />
           </div>
         </div>
 
@@ -3918,6 +4077,63 @@
     </div>
   </div>
 
+  <!-- Universal Action Confirmation Modal -->
+  <div id="universalConfirmModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="universalConfirmTitle" style="z-index:110;align-items:center;padding:16px;">
+    <div class="modal-sheet" style="max-width:420px;border-radius:22px;margin:auto;">
+      <div class="modal-header">
+        <h3 id="universalConfirmTitle" class="modal-title no-wrap">Confirm Action</h3>
+        <button type="button" id="closeUniversalConfirmBtn" class="modal-close no-wrap" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="detail-kv-box" style="background:#eef2ff;border-color:#c7d2fe;">
+          <div class="detail-kv-label" style="color:#3730a3;">Please Confirm</div>
+          <div id="universalConfirmMessage" class="detail-kv-val word-wrap-clean" style="font-size:14.5px;line-height:1.45;margin-top:6px;">Are you sure you want to perform this action?</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="universalConfirmCancelBtn" class="btn-secondary no-wrap">Cancel</button>
+        <div class="modal-footer-right">
+          <button type="button" id="universalConfirmOkBtn" class="btn-primary no-wrap">Confirm</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Daily Order Type Choice Modal (Shop Order / Customer Order / Personal Order) -->
+  <div id="orderTypeChoiceModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="orderTypeChoiceTitle" style="z-index:86;align-items:center;padding:16px;">
+    <div class="modal-sheet" style="max-width:420px;border-radius:22px;margin:auto;">
+      <div class="modal-header">
+        <h3 id="orderTypeChoiceTitle" class="modal-title no-wrap">Select Order Type</h3>
+        <button type="button" id="closeOrderTypeChoiceBtn" class="modal-close no-wrap" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body" style="gap:10px;">
+        <button type="button" class="mobile-glass-option-btn" data-pick-order-type="SHOP_ORDER" style="background:#eef2ff;border-color:#a5b4fc;">
+          <div style="text-align:left;">
+            <div style="font-size:14px;font-weight:900;color:#3730a3;">Shop Order</div>
+            <div class="live-match-sub" style="color:#4f46e5;">Create &amp; manage shop orders</div>
+          </div>
+          <span class="item-no-pill no-wrap">Shop</span>
+        </button>
+
+        <button type="button" class="mobile-glass-option-btn" data-pick-order-type="CUSTOMER_ORDER" style="background:#ecfdf5;border-color:#6ee7b7;">
+          <div style="text-align:left;">
+            <div style="font-size:14px;font-weight:900;color:#065f46;">Customer Order</div>
+            <div class="live-match-sub" style="color:#059669;">Create &amp; manage customer orders</div>
+          </div>
+          <span class="warranty-badge-yes no-wrap">Customer</span>
+        </button>
+
+        <button type="button" class="mobile-glass-option-btn" data-pick-order-type="PERSONAL_ORDER" style="background:#fdf2f8;border-color:#f9a8d4;">
+          <div style="text-align:left;">
+            <div style="font-size:14px;font-weight:900;color:#9d174d;">Personal Order</div>
+            <div class="live-match-sub" style="color:#db2777;">Create &amp; manage personal orders</div>
+          </div>
+          <span class="price-pill no-wrap">Personal</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Drawer Section Modal -->
   <div id="drawerSectionModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="drawerSectionTitle">
     <div class="modal-sheet">
@@ -3952,6 +4168,7 @@
           returnRequests: [],
           damagedProducts: [],
           orders: [],
+          lsrBoughtItems: [],
           securityPassword: "",
           lastBackupDateTime: "",
           backupGmailId: "",
@@ -3993,6 +4210,7 @@
           products: parsed.products.map((p) => ({
             ...p,
             price: Number(p.price) || 0,
+            minStockQty: p.minStockQty !== undefined && p.minStockQty !== null && p.minStockQty !== "" ? Math.max(0, parseInt(p.minStockQty, 10) || 0) : 3,
             imageData: typeof p.imageData === "string" ? p.imageData : ""
           })),
           customers: Array.isArray(parsed.customers) ? parsed.customers : [],
@@ -4001,6 +4219,7 @@
           returnRequests: Array.isArray(parsed.returnRequests) ? parsed.returnRequests : [],
           damagedProducts: Array.isArray(parsed.damagedProducts) ? parsed.damagedProducts : [],
           orders: Array.isArray(parsed.orders) ? parsed.orders : [],
+          lsrBoughtItems: Array.isArray(parsed.lsrBoughtItems) ? parsed.lsrBoughtItems : [],
           securityPassword: typeof parsed.securityPassword === "string" ? parsed.securityPassword : "",
           lastBackupDateTime: typeof parsed.lastBackupDateTime === "string" ? parsed.lastBackupDateTime : "",
           backupGmailId: typeof parsed.backupGmailId === "string" ? parsed.backupGmailId : "",
@@ -4151,6 +4370,7 @@
       let selectedCategory = "ALL";
       let selectedCompany = "ALL";
       let searchQuery = "";
+      let categoryTabSearchQuery = "";
       let warrantySearchQuery = "";
       let warrantyFromDate = "";
       let warrantyToDate = "";
@@ -4174,6 +4394,76 @@
       let tpvStockFilter = "IN_STOCK";
       let tpvCategoryFilter = "ALL";
       let tpvSearchQuery = "";
+      let lsrSearchQuery = "";
+      let lsrCustomMaxQty = null;
+      let lsrSubTab = "LOW_STOCK";
+      let selectedOrderCategoryType = "SHOP_ORDER"; // "SHOP_ORDER" | "CUSTOMER_ORDER" | "PERSONAL_ORDER"
+
+      function getOrderTypeLabel(typeKey) {
+        if (typeKey === "CUSTOMER_ORDER") return "Customer Order";
+        if (typeKey === "PERSONAL_ORDER") return "Personal Order";
+        return "Shop Order";
+      }
+
+      function getProductMinStock(item) {
+        if (!item || item.minStockQty === undefined || item.minStockQty === null || item.minStockQty === "") {
+          return 3;
+        }
+        return Math.max(0, parseInt(item.minStockQty, 10) || 0);
+      }
+
+      function formatProductTimestampDisplay(rawTs) {
+        if (!rawTs) return "";
+        if (typeof rawTs === "number" && rawTs > 0) {
+          const dt = new Date(rawTs);
+          if (!Number.isNaN(dt.getTime())) {
+            const yyyy = dt.getFullYear();
+            const mm = String(dt.getMonth() + 1).padStart(2, "0");
+            const dd = String(dt.getDate()).padStart(2, "0");
+            return `${dd}-${mm}-${yyyy}`;
+          }
+        }
+        const str = String(rawTs).trim();
+        if (!str) return "";
+        if (/^\d{12,13}$/.test(str)) {
+          const dt = new Date(parseInt(str, 10));
+          if (!Number.isNaN(dt.getTime())) {
+            const yyyy = dt.getFullYear();
+            const mm = String(dt.getMonth() + 1).padStart(2, "0");
+            const dd = String(dt.getDate()).padStart(2, "0");
+            return `${dd}-${mm}-${yyyy}`;
+          }
+        }
+        return formatDisplayDate(str);
+      }
+
+      function getProductEntryDateDisplay(item) {
+        if (!item) return "—";
+        if (item.createdAt) {
+          const disp = formatProductTimestampDisplay(item.createdAt);
+          if (disp) return disp;
+        }
+        const idStr = String(item.id || "");
+        const m = idStr.match(/(\d{12,13})/);
+        if (m) {
+          const disp = formatProductTimestampDisplay(parseInt(m[1], 10));
+          if (disp) return disp;
+        }
+        if (item.updatedAt) {
+          const disp = formatProductTimestampDisplay(item.updatedAt);
+          if (disp) return disp;
+        }
+        return "—";
+      }
+
+      function getProductLastUpdateDisplay(item) {
+        if (!item) return "—";
+        if (item.updatedAt) {
+          const disp = formatProductTimestampDisplay(item.updatedAt);
+          if (disp) return disp;
+        }
+        return getProductEntryDateDisplay(item);
+      }
       let approvingRequestId = null;
       let pickerFilterQuery = "";
       let compPickerFilterQuery = "";
@@ -4188,7 +4478,7 @@
       let salePaymentMode = "Online";
       let discountSourceMode = "pct";
       let paidAmountManuallyEdited = false;
-      const expandedProductNames = new Set();
+      let expandedProductId = null;
 
       let newCategoryHasWarranty = true;
       let newCategoryHasLocation = true;
@@ -4647,6 +4937,66 @@
         }, 2400);
       }
 
+      let pendingConfirmResolve = null;
+      function requestConfirmation(messageText, titleText) {
+        return new Promise((resolve) => {
+          const modalEl = document.getElementById("universalConfirmModal");
+          const titleEl = document.getElementById("universalConfirmTitle");
+          const msgEl = document.getElementById("universalConfirmMessage");
+          const okBtn = document.getElementById("universalConfirmOkBtn");
+          const cancelBtn = document.getElementById("universalConfirmCancelBtn");
+          const closeBtn = document.getElementById("closeUniversalConfirmBtn");
+
+          if (!modalEl || !msgEl || !okBtn || !cancelBtn) {
+            resolve(window.confirm(messageText || "Are you sure?"));
+            return;
+          }
+
+          if (pendingConfirmResolve) {
+            const prev = pendingConfirmResolve;
+            pendingConfirmResolve = null;
+            prev(false);
+          }
+
+          pendingConfirmResolve = resolve;
+          if (titleEl) titleEl.textContent = titleText || "Confirm Action";
+          msgEl.textContent = String(messageText || "Are you sure you want to continue?");
+          modalEl.classList.add("open");
+          syncPlusButtonModalState();
+
+          const finish = (accepted) => {
+            modalEl.classList.remove("open");
+            syncPlusButtonModalState();
+            const resFn = pendingConfirmResolve;
+            pendingConfirmResolve = null;
+            okBtn.removeEventListener("click", onOk);
+            cancelBtn.removeEventListener("click", onCancel);
+            if (closeBtn) closeBtn.removeEventListener("click", onCancel);
+            modalEl.removeEventListener("click", onBackdrop);
+            if (typeof resFn === "function") resFn(Boolean(accepted));
+          };
+
+          const onOk = (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            finish(true);
+          };
+          const onCancel = (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            finish(false);
+          };
+          const onBackdrop = (ev) => {
+            if (ev.target === modalEl) finish(false);
+          };
+
+          okBtn.addEventListener("click", onOk);
+          cancelBtn.addEventListener("click", onCancel);
+          if (closeBtn) closeBtn.addEventListener("click", onCancel);
+          modalEl.addEventListener("click", onBackdrop);
+        });
+      }
+
       function escapeHtml(str) {
         return String(str ?? "")
           .replace(/&/g, "&amp;")
@@ -4674,6 +5024,33 @@
           })
           .join("");
       }
+
+      function syncStickyHeaderOffset() {
+        const hdr = document.querySelector(".top-header");
+        if (hdr) {
+          const h = Math.round(hdr.getBoundingClientRect().height);
+          if (h > 0) {
+            document.documentElement.style.setProperty("--header-h", h + "px");
+          }
+        }
+        const prodFilter = document.querySelector(".filter-stack");
+        if (prodFilter) {
+          const fh = Math.round(prodFilter.getBoundingClientRect().height);
+          if (fh > 0) {
+            document.documentElement.style.setProperty("--products-filter-h", fh + "px");
+          }
+        }
+        const catFilter = document.querySelector(".categories-sticky-header");
+        if (catFilter) {
+          const ch = Math.round(catFilter.getBoundingClientRect().height);
+          if (ch > 0) {
+            document.documentElement.style.setProperty("--categories-filter-h", ch + "px");
+          }
+        }
+      }
+      window.addEventListener("resize", syncStickyHeaderOffset);
+      window.addEventListener("load", syncStickyHeaderOffset);
+      requestAnimationFrame(syncStickyHeaderOffset);
 
       function syncPlusButtonModalState() {
         const anyOverlayOpen = Boolean(document.querySelector(".modal-backdrop.open, .fullpage-overlay.open"));
@@ -5289,7 +5666,7 @@
         openScannerModal("warranty");
       });
 
-      document.getElementById("warrantyFullPageList").addEventListener("click", (e) => {
+      document.getElementById("warrantyFullPageList").addEventListener("click", async (e) => {
         const viewBtn = e.target.closest("[data-warranty-view-status]");
         if (viewBtn) {
           const reqKey = viewBtn.getAttribute("data-warranty-view-status");
@@ -5313,9 +5690,8 @@
           return;
         }
 
-        if (!window.confirm(`Confirm Return Request for "${target.productName}" (Bill: ${target.billNo})?`)) {
-          return;
-        }
+        const okWarReq = await requestConfirmation(`Submit Return Request for "${target.productName}" (Bill: ${target.billNo})?`, "Confirm Return Request");
+        if (!okWarReq) return;
 
         const nowMs = Date.now();
         const todayIso = getTodayIsoDate();
@@ -5373,6 +5749,11 @@
         document.getElementById("drawerWarrantyCount").textContent = String(getWarrantyEntries().length);
         const pendingOrTotalReqs = state.returnRequests.filter((r) => r.status === "Pending").length || state.returnRequests.length;
         document.getElementById("drawerReturnCount").textContent = String(pendingOrTotalReqs);
+        const lowStockDrawerBadge = document.getElementById("drawerLowStockCount");
+        if (lowStockDrawerBadge) {
+          const lowCount = state.products.filter((p) => (Number(p.stockQty) || 0) <= getProductMinStock(p)).length;
+          lowStockDrawerBadge.textContent = String(lowCount);
+        }
         document.getElementById("drawerDamageCount").textContent = String(state.damagedProducts.length);
         const orderBadge = document.getElementById("drawerDailyOrderCount");
         if (orderBadge) {
@@ -5564,8 +5945,9 @@
             const saleNum = Number(item.saleQty) || 0;
             const priceNum = Number(item.price) || 0;
             let stockClass = "stock-ok";
+            const minLimit = getProductMinStock(item);
             if (stockNum <= 0) stockClass = "stock-out";
-            else if (stockNum <= 3) stockClass = "stock-low";
+            else if (stockNum <= minLimit) stockClass = "stock-low";
 
             const showThumb = categoryHasImage(item.category) && Boolean(item.imageData);
             const thumbHtml = showThumb
@@ -6523,7 +6905,12 @@
       function syncProductLocationField(existingLocation) {
         const selectedCatName = prodCategorySelect.value;
         const locEnabled = categoryHasLocation(selectedCatName);
+        const itemNoEnabled = categoryHasItemNo(selectedCatName);
+        const rowEl = document.getElementById("productItemLocRow");
         productLocationFieldWrap.style.display = locEnabled ? "block" : "none";
+        if (rowEl) {
+          rowEl.style.gridTemplateColumns = (locEnabled && itemNoEnabled) ? "1fr 1fr" : "1fr";
+        }
         prodLocationInput.required = locEnabled;
         if (locEnabled) {
           if (existingLocation !== undefined && existingLocation !== null) {
@@ -6588,6 +6975,7 @@
           btn.classList.toggle("active", btn.getAttribute("data-tab") === tabName);
         });
         renderAll();
+        requestAnimationFrame(syncStickyHeaderOffset);
       }
 
       function isLongProductName(nameStr) {
@@ -6601,8 +6989,9 @@
         const saleNum = Number(item.saleQty) || 0;
         const priceNum = Number(item.price) || 0;
         let stockClass = "stock-ok";
+        const minLimit = getProductMinStock(item);
         if (stockNum <= 0) stockClass = "stock-out";
-        else if (stockNum <= 3) stockClass = "stock-low";
+        else if (stockNum <= minLimit) stockClass = "stock-low";
 
         const itemNoHtml = item.itemNo
           ? `<span class="item-no-pill no-wrap">#${highlightSearchText(item.itemNo, q)}</span>`
@@ -6626,7 +7015,7 @@
           : "";
 
         const longName = isLongProductName(item.name);
-        const isExpanded = expandedProductNames.has(item.id);
+        const isExpanded = expandedProductId === item.id;
         const clampClass = !isSearching && longName && !isExpanded ? "clamped-two-lines" : "";
         const tapExpandClass = !isSearching && longName ? "tap-expandable" : "";
         const tapExpandAttr = !isSearching && longName ? `data-toggle-name-id="${escapeHtml(item.id)}"` : "";
@@ -6672,7 +7061,7 @@
         const totalItems = state.products.length;
         const totalStock = state.products.reduce((acc, p) => acc + (Number(p.stockQty) || 0), 0);
         const totalSale = state.products.reduce((acc, p) => acc + (Number(p.saleQty) || 0), 0);
-        const lowOrOut = state.products.filter((p) => (Number(p.stockQty) || 0) <= 3).length;
+        const lowOrOut = state.products.filter((p) => (Number(p.stockQty) || 0) <= getProductMinStock(p)).length;
 
         document.getElementById("statTotalItems").textContent = String(totalItems);
         document.getElementById("statTotalCats").textContent = `${state.categories.length} Categories`;
@@ -6924,12 +7313,29 @@
         listView.style.display = "block";
         companiesView.style.display = "none";
 
+        const rawCatQ = categoryTabSearchQuery.trim();
+        const catQ = rawCatQ.toLowerCase();
+        const clearCatBtn = document.getElementById("clearCategoryTabSearchBtn");
+        if (clearCatBtn) clearCatBtn.classList.toggle("visible", rawCatQ.length > 0);
+
+        const filteredCategories = state.categories.filter((cat) => {
+          if (!catQ) return true;
+          const compNames = Array.isArray(cat.companies) ? cat.companies.join(" ") : "";
+          return `${cat.name} ${compNames}`.toLowerCase().includes(catQ);
+        });
+
+        document.getElementById("categoryTabTotal").textContent = String(filteredCategories.length);
+
         const listEl = document.getElementById("categoryManageList");
         if (state.categories.length === 0) {
           listEl.innerHTML = `<div class="empty-state"><div class="empty-title">No Categories Yet</div><p class="empty-desc">Tap "+" to create a category.</p></div>`;
           return;
         }
-        listEl.innerHTML = state.categories
+        if (filteredCategories.length === 0) {
+          listEl.innerHTML = `<div class="empty-state"><div class="empty-title">No Matching Category</div><p class="empty-desc">No category found for "${escapeHtml(rawCatQ)}".</p></div>`;
+          return;
+        }
+        listEl.innerHTML = filteredCategories
           .map((cat) => {
             const totals = getCategoryTotals(cat.name);
             const compCount = (cat.companies || []).length;
@@ -6938,7 +7344,7 @@
             return `
               <div class="cat-card" data-cat-name="${escapeHtml(cat.name)}" role="button" tabindex="0" style="background:#ffffff;">
                 <div class="cat-card-left">
-                  <h3 class="cat-card-title word-wrap-clean">${escapeHtml(cat.name)}</h3>
+                  <h3 class="cat-card-title word-wrap-clean">${highlightSearchText(cat.name, rawCatQ)}</h3>
                   <div class="cat-card-subline">Location: ${locEnabled ? "ON" : "OFF"} · Image: ${imgEnabled ? "ON" : "OFF"} · ${compCount} ${compCount === 1 ? "Company" : "Companies"}</div>
                   <div class="cat-card-stats-row">
                     <span class="qty-box stock-ok no-wrap">
@@ -7068,6 +7474,10 @@
           ? `<img src="${escapeHtml(item.imageData)}" class="detail-product-photo" alt="${escapeHtml(item.name)}" />`
           : "";
 
+        const minStockVal = getProductMinStock(item);
+        const entryDateText = getProductEntryDateDisplay(item);
+        const lastUpdateText = getProductLastUpdateDisplay(item);
+
         document.getElementById("detailModalTitle").textContent = "Product Details";
         document.getElementById("productDetailBody").innerHTML = `
           <div class="detail-qr-top-card">
@@ -7100,14 +7510,27 @@
               <div class="detail-kv-label">Sale Qty</div>
               <div class="detail-kv-val" style="color:#4f46e5;">${Number(item.saleQty) || 0}</div>
             </div>
-          </div>
-          <div class="detail-kv-grid">
+            <div class="detail-kv-box">
+              <div class="detail-kv-label">Min Stock Qty</div>
+              <div class="detail-kv-val" style="color:#e11d48;">${minStockVal}</div>
+            </div>
             ${item.locationNo ? `<div class="detail-kv-box"><div class="detail-kv-label">Location No.</div><div class="detail-kv-val" style="font-size:24px;">${escapeHtml(item.locationNo)}</div></div>` : ""}
             <div class="detail-kv-box">
               <div class="detail-kv-label">Warranty</div>
               <div class="detail-kv-val">${wMonths > 0 ? `${wMonths} Months` : "No Warranty"}</div>
             </div>
             ${item.barcode ? `<div class="detail-kv-box"><div class="detail-kv-label">Barcode / QR</div><div class="detail-kv-val">${escapeHtml(item.barcode)}</div></div>` : ""}
+          </div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--bg-subtle);border:1px solid var(--border-light);border-radius:12px;padding:10px 12px;margin-top:2px;">
+            <div style="text-align:left;min-width:0;">
+              <div class="detail-kv-label no-wrap">Entry Date</div>
+              <div class="detail-kv-val no-wrap" style="font-size:13.5px;color:#334155;">${escapeHtml(entryDateText)}</div>
+            </div>
+            <div style="text-align:right;min-width:0;">
+              <div class="detail-kv-label no-wrap">Last Update</div>
+              <div class="detail-kv-val no-wrap" style="font-size:13.5px;color:#4f46e5;">${escapeHtml(lastUpdateText)}</div>
+            </div>
           </div>
         `;
         productDetailModal.classList.add("open");
@@ -7149,6 +7572,7 @@
           prodPriceInput.value = String(Number(item.price) || 0);
           document.getElementById("prodStockQty").value = String(Number(item.stockQty) || 0);
           document.getElementById("prodSaleQty").value = String(Number(item.saleQty) || 0);
+          document.getElementById("prodMinStockQty").value = String(getProductMinStock(item));
           syncProductWarrantyField(item.warrantyMonths || 3);
         } else {
           const defaultCat =
@@ -7167,6 +7591,7 @@
           prodPriceInput.value = "0";
           document.getElementById("prodStockQty").value = "1";
           document.getElementById("prodSaleQty").value = "0";
+          document.getElementById("prodMinStockQty").value = "3";
           syncProductWarrantyField(3);
         }
         productModal.classList.add("open");
@@ -8989,12 +9414,13 @@
         if (e.target === document.getElementById("dsrTransactionActionModal")) closeDsrTransactionActionModal();
       });
 
-      document.getElementById("deleteDsrTransactionBtn").addEventListener("click", () => {
+      document.getElementById("deleteDsrTransactionBtn").addEventListener("click", async () => {
         const lid = selectedDsrLedgerIdForAction;
         if (!lid) return;
         const entry = state.ledger.find((l) => l.id === lid);
         if (!entry) return;
-        if (!window.confirm(`Delete transaction "${entry.billNo}" (${entry.customerName}) and restore stock?`)) return;
+        const okDelDsr = await requestConfirmation(`Delete transaction "${entry.billNo}" (${entry.customerName}) and restore stock?`, "Confirm Delete Bill");
+        if (!okDelDsr) return;
 
         restoreLedgerEntryStock(entry);
         state.ledger = state.ledger.filter((l) => l.id !== lid);
@@ -9264,7 +9690,7 @@
             const rate = Math.max(0, Number(p.price) || 0);
             const qty = Math.max(0, Number(p.stockQty) || 0);
             const rowTotal = rate * qty;
-            const stockBadgeClass = qty <= 0 ? "stock-out" : (qty <= 3 ? "stock-low" : "stock-ok");
+            const stockBadgeClass = qty <= 0 ? "stock-out" : (qty <= getProductMinStock(p) ? "stock-low" : "stock-ok");
 
             return `
               <div class="detail-kv-box" style="background:#ffffff;border:1px solid var(--border-light);box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:7px;">
@@ -9310,6 +9736,358 @@
       }
 
       document.getElementById("closeTpvFullPageBtn").addEventListener("click", closeTotalProductValueFullPage);
+
+      function syncLsrSubTabButtons() {
+        const lowBtn = document.getElementById("lsrTabLowStockBtn");
+        const boughtBtn = document.getElementById("lsrTabBoughtBtn");
+        if (lowBtn) {
+          lowBtn.className = "warranty-choice-btn no-wrap" + (lsrSubTab === "LOW_STOCK" ? " active-yes" : "");
+          lowBtn.style.padding = "9px 8px";
+          lowBtn.style.fontSize = "13px";
+        }
+        if (boughtBtn) {
+          boughtBtn.className = "warranty-choice-btn no-wrap" + (lsrSubTab === "BOUGHT" ? " active-yes" : "");
+          boughtBtn.style.padding = "9px 8px";
+          boughtBtn.style.fontSize = "13px";
+        }
+      }
+
+      function renderLowStockReportFullPage() {
+        syncLsrSubTabButtons();
+        const allProds = state.products || [];
+        if (!Array.isArray(state.lsrBoughtItems)) state.lsrBoughtItems = [];
+        const rawQ = lsrSearchQuery.trim();
+        const q = rawQ.toLowerCase();
+        const isSearching = rawQ.length > 0;
+        const hasCustomThreshold = lsrCustomMaxQty !== null && !Number.isNaN(lsrCustomMaxQty);
+
+        const modeHintEl = document.getElementById("lsrActiveModeHint");
+        const resetBtnEl = document.getElementById("lsrResetCustomQtyBtn");
+        if (hasCustomThreshold) {
+          if (modeHintEl) {
+            modeHintEl.textContent = `Custom Filter Active: Showing items with Stock ≤ ${lsrCustomMaxQty} (Lowest stock first)`;
+            modeHintEl.style.color = "#059669";
+          }
+          if (resetBtnEl) resetBtnEl.style.display = "inline-block";
+        } else {
+          if (modeHintEl) {
+            modeHintEl.textContent = "Mode: Product Minimum Stock Limit (Lowest stock first)";
+            modeHintEl.style.color = "#4f46e5";
+          }
+          if (resetBtnEl) resetBtnEl.style.display = "none";
+        }
+
+        const boughtProductIdSet = new Set(state.lsrBoughtItems.map((b) => b.productId));
+
+        const lowFiltered = allProds
+          .filter((p) => {
+            if (boughtProductIdSet.has(p.id)) return false;
+            const stk = Number(p.stockQty) || 0;
+            const threshold = hasCustomThreshold ? lsrCustomMaxQty : getProductMinStock(p);
+            if (stk > threshold) return false;
+            if (!q) return true;
+            return `${p.itemNo || ""} ${p.name || ""} ${p.category || ""} ${p.company || ""} ${p.locationNo || ""}`
+              .toLowerCase()
+              .includes(q);
+          })
+          .sort((a, b) => {
+            const stkA = Number(a.stockQty) || 0;
+            const stkB = Number(b.stockQty) || 0;
+            if (stkA !== stkB) return stkA - stkB;
+            return String(a.name || "").localeCompare(String(b.name || ""));
+          });
+
+        const boughtFiltered = state.lsrBoughtItems.filter((b) => {
+          if (!q) return true;
+          return `${b.itemNo || ""} ${b.productName || ""} ${b.category || ""} ${b.company || ""} ${b.locationNo || ""}`
+            .toLowerCase()
+            .includes(q);
+        });
+
+        const lowTabBadge = document.getElementById("lsrLowTabCount");
+        const boughtTabBadge = document.getElementById("lsrBoughtTabCount");
+        if (lowTabBadge) lowTabBadge.textContent = String(lowFiltered.length);
+        if (boughtTabBadge) boughtTabBadge.textContent = String(boughtFiltered.length);
+
+        const outOfStockCount = lowFiltered.filter((p) => (Number(p.stockQty) || 0) <= 0).length;
+        const lowOnlyCount = lowFiltered.length - outOfStockCount;
+
+        const headerBadge = document.getElementById("lsrHeaderCountBadge");
+        if (headerBadge) {
+          headerBadge.textContent = lsrSubTab === "BOUGHT"
+            ? `${boughtFiltered.length} Bought`
+            : `${lowFiltered.length} Items`;
+        }
+
+        const stripEl = document.getElementById("lsrSummaryStrip");
+        if (stripEl) {
+          if (lsrSubTab === "BOUGHT") {
+            stripEl.innerHTML = `
+              <span class="no-wrap" style="color:#059669;">Bought Completed: ${boughtFiltered.length}</span>
+              <span class="no-wrap" style="color:#d97706;">Remaining Low Stock: ${lowFiltered.length}</span>
+            `;
+          } else {
+            stripEl.innerHTML = `
+              <span class="no-wrap" style="color:#e11d48;">Out of Stock: ${outOfStockCount}</span>
+              <span class="no-wrap" style="color:#d97706;">Low Stock: ${lowOnlyCount}</span>
+              <span class="no-wrap" style="color:#3730a3;">Total: ${lowFiltered.length}</span>
+            `;
+          }
+        }
+
+        const listEl = document.getElementById("lsrProductsList");
+        if (!listEl) return;
+
+        if (lsrSubTab === "BOUGHT") {
+          if (boughtFiltered.length === 0) {
+            listEl.innerHTML = `
+              <div class="empty-state">
+                <div class="empty-title">No Bought Items Yet</div>
+                <p class="empty-desc">Tap "Buy Complete" on any low stock product to move it here.</p>
+              </div>
+            `;
+            return;
+          }
+
+          listEl.innerHTML = boughtFiltered
+            .map((bItem, idx) => {
+              const liveProd = allProds.find((p) => p.id === bItem.productId);
+              const imgData = liveProd ? liveProd.imageData : (bItem.imageData || "");
+              const catName = liveProd ? liveProd.category : (bItem.category || "");
+              const prodName = liveProd ? liveProd.name : (bItem.productName || "");
+              const itemNoVal = liveProd ? (liveProd.itemNo || "") : (bItem.itemNo || "");
+              const locVal = liveProd ? (liveProd.locationNo || "") : (bItem.locationNo || "");
+              const stkVal = liveProd ? (Number(liveProd.stockQty) || 0) : (Number(bItem.stockQty) || 0);
+              const showThumb = categoryHasImage(catName) && Boolean(imgData);
+              const thumbHtml = showThumb
+                ? `<img src="${escapeHtml(imgData)}" class="product-card-thumb" alt="${escapeHtml(prodName)}" />`
+                : "";
+
+              const toggleKey = "lsr_bought_" + bItem.id;
+              const longName = isLongProductName(prodName);
+              const isExpanded = expandedProductId === toggleKey;
+              const clampClass = !isSearching && longName && !isExpanded ? "clamped-two-lines" : "";
+              const tapExpandClass = !isSearching && longName ? "tap-expandable" : "";
+              const tapExpandAttr = !isSearching && longName ? `data-lsr-toggle-name="${escapeHtml(toggleKey)}"` : "";
+
+              return `
+                <div class="detail-kv-box" style="background:#ffffff;border:1px solid #a7f3d0;border-left:4px solid #059669;box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:space-between;gap:10px;">
+                  <div style="flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:6px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;">
+                      <div style="display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap;">
+                        <span class="warranty-badge-yes no-wrap" style="padding:2px 7px;font-size:11px;">#${idx + 1}</span>
+                        ${itemNoVal ? `<span class="item-no-pill no-wrap">#${highlightSearchText(itemNoVal, rawQ)}</span>` : ""}
+                        ${catName ? `<span class="category-pill">${highlightSearchText(catName, rawQ)}</span>` : ""}
+                      </div>
+                      <span class="warranty-badge-yes no-wrap">BOUGHT</span>
+                    </div>
+
+                    <div class="product-name word-wrap-clean ${clampClass} ${tapExpandClass}" ${tapExpandAttr} style="font-size:15px;">${highlightSearchText(prodName, rawQ)}</div>
+
+                    <div class="qty-tight-group">
+                      <span class="qty-box stock-ok no-wrap">
+                        <span>Current Stock</span>
+                        <span class="qty-num">${stkVal}</span>
+                      </span>
+                      <span class="category-pill no-wrap">Bought: ${escapeHtml(bItem.boughtDate || "")} (${escapeHtml(bItem.timeDisplay || "")})</span>
+                      ${locVal ? `<span class="location-standalone no-wrap">${highlightSearchText(locVal, rawQ)}</span>` : ""}
+                    </div>
+
+                    <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;padding-top:2px;">
+                      <button type="button" class="btn-secondary no-wrap" style="padding:6px 11px;font-size:11.5px;" data-lsr-undo-bought="${escapeHtml(bItem.id)}">Move Back</button>
+                    </div>
+                  </div>
+                  ${thumbHtml}
+                </div>
+              `;
+            })
+            .join("");
+          return;
+        }
+
+        if (lowFiltered.length === 0) {
+          listEl.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-title">No Low Stock Items Found</div>
+              <p class="empty-desc">${hasCustomThreshold ? `No products found with stock ≤ ${lsrCustomMaxQty}.` : "All products are above their minimum stock limit."}</p>
+            </div>
+          `;
+          return;
+        }
+
+        listEl.innerHTML = lowFiltered
+          .map((item, idx) => {
+            const stk = Number(item.stockQty) || 0;
+            const sale = Number(item.saleQty) || 0;
+            const minLimit = getProductMinStock(item);
+            const isOut = stk <= 0;
+            const badgeClass = isOut ? "stock-out" : "stock-low";
+            const statusText = isOut ? "OUT OF STOCK" : "LOW STOCK";
+            const showThumb = categoryHasImage(item.category) && Boolean(item.imageData);
+            const thumbHtml = showThumb
+              ? `<img src="${escapeHtml(item.imageData)}" class="product-card-thumb" alt="${escapeHtml(item.name)}" />`
+              : "";
+
+            const toggleKey = "lsr_low_" + item.id;
+            const longName = isLongProductName(item.name);
+            const isExpanded = expandedProductId === toggleKey;
+            const clampClass = !isSearching && longName && !isExpanded ? "clamped-two-lines" : "";
+            const tapExpandClass = !isSearching && longName ? "tap-expandable" : "";
+            const tapExpandAttr = !isSearching && longName ? `data-lsr-toggle-name="${escapeHtml(toggleKey)}"` : "";
+
+            return `
+              <div class="detail-kv-box" style="background:#ffffff;border:1px solid ${isOut ? "#fecdd3" : "#fde68a"};border-left:4px solid ${isOut ? "#e11d48" : "#d97706"};box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:space-between;gap:10px;">
+                <div style="flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:6px;">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;">
+                    <div style="display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap;">
+                      <span class="warranty-badge-no no-wrap" style="padding:2px 7px;font-size:11px;">#${idx + 1}</span>
+                      ${item.itemNo ? `<span class="item-no-pill no-wrap">#${highlightSearchText(item.itemNo, rawQ)}</span>` : ""}
+                      <span class="category-pill">${highlightSearchText(item.category, rawQ)}</span>
+                    </div>
+                    <span class="warranty-days-pill ${isOut ? "expired" : ""} no-wrap" style="${!isOut ? "background:#fffbeb;color:#92400e;border:1px solid #fde68a;" : ""}">${statusText}</span>
+                  </div>
+
+                  <div class="product-name word-wrap-clean ${clampClass} ${tapExpandClass}" ${tapExpandAttr} style="font-size:15px;">${highlightSearchText(item.name, rawQ)}</div>
+
+                  <div class="qty-tight-group">
+                    <span class="qty-box ${badgeClass} no-wrap">
+                      <span>Stock</span>
+                      <span class="qty-num">${stk}</span>
+                    </span>
+                    <span class="qty-box sale-box no-wrap">
+                      <span>Min Limit</span>
+                      <span class="qty-num">${minLimit}</span>
+                    </span>
+                    <span class="category-pill no-wrap">Sale: ${sale}</span>
+                    ${item.locationNo ? `<span class="location-standalone no-wrap">${highlightSearchText(item.locationNo, rawQ)}</span>` : ""}
+                  </div>
+
+                  <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;padding-top:2px;">
+                    <button type="button" class="btn-success no-wrap" style="padding:7px 12px;font-size:12px;" data-lsr-buy-complete="${escapeHtml(item.id)}">Buy Complete</button>
+                  </div>
+                </div>
+                ${thumbHtml}
+              </div>
+            `;
+          })
+          .join("");
+      }
+
+      function openLowStockReportFullPage() {
+        closeDrawer();
+        lsrSubTab = "LOW_STOCK";
+        lsrSearchQuery = "";
+        lsrCustomMaxQty = null;
+        const searchEl = document.getElementById("lsrSearchInput");
+        const customInputEl = document.getElementById("lsrCustomQtyInput");
+        if (searchEl) searchEl.value = "";
+        if (customInputEl) customInputEl.value = "";
+        renderLowStockReportFullPage();
+        document.getElementById("lowStockReportFullPage").classList.add("open");
+        syncPlusButtonModalState();
+      }
+
+      function closeLowStockReportFullPage() {
+        document.getElementById("lowStockReportFullPage").classList.remove("open");
+        syncPlusButtonModalState();
+      }
+
+      document.getElementById("closeLsrFullPageBtn").addEventListener("click", closeLowStockReportFullPage);
+      document.getElementById("lsrTabLowStockBtn").addEventListener("click", () => {
+        lsrSubTab = "LOW_STOCK";
+        renderLowStockReportFullPage();
+      });
+      document.getElementById("lsrTabBoughtBtn").addEventListener("click", () => {
+        lsrSubTab = "BOUGHT";
+        renderLowStockReportFullPage();
+      });
+
+      const debouncedRenderLsr = debounceFn(renderLowStockReportFullPage, 160);
+      document.getElementById("lsrSearchInput").addEventListener("input", (e) => {
+        lsrSearchQuery = e.target.value;
+        debouncedRenderLsr();
+      });
+
+      document.getElementById("lsrApplyCustomQtyBtn").addEventListener("click", () => {
+        const rawVal = document.getElementById("lsrCustomQtyInput").value.trim();
+        if (rawVal === "") {
+          lsrCustomMaxQty = null;
+          renderLowStockReportFullPage();
+          showToast("Showing default minimum stock report");
+          return;
+        }
+        const parsed = parseInt(rawVal, 10);
+        if (Number.isNaN(parsed) || parsed < 0) {
+          showToast("Enter a valid stock quantity");
+          return;
+        }
+        lsrCustomMaxQty = parsed;
+        renderLowStockReportFullPage();
+        showToast(`Showing products with stock ≤ ${parsed}`);
+      });
+
+      document.getElementById("lsrResetCustomQtyBtn").addEventListener("click", () => {
+        lsrCustomMaxQty = null;
+        document.getElementById("lsrCustomQtyInput").value = "";
+        renderLowStockReportFullPage();
+        showToast("Reset to product minimum stock limit");
+      });
+
+      document.getElementById("lsrProductsList").addEventListener("click", async (e) => {
+        const toggleNameEl = e.target.closest("[data-lsr-toggle-name]");
+        if (toggleNameEl) {
+          const key = toggleNameEl.getAttribute("data-lsr-toggle-name");
+          expandedProductId = (expandedProductId === key) ? null : key;
+          renderLowStockReportFullPage();
+          return;
+        }
+
+        const undoBtn = e.target.closest("[data-lsr-undo-bought]");
+        if (undoBtn) {
+          const boughtId = undoBtn.getAttribute("data-lsr-undo-bought");
+          const targetB = (state.lsrBoughtItems || []).find((b) => b.id === boughtId);
+          const okUndo = await requestConfirmation(`Move "${targetB ? targetB.productName : "item"}" back to Low Stock?`, "Confirm Move Back");
+          if (!okUndo) return;
+          state.lsrBoughtItems = (state.lsrBoughtItems || []).filter((b) => b.id !== boughtId);
+          saveState();
+          renderLowStockReportFullPage();
+          showToast("Moved back to Low Stock");
+          return;
+        }
+
+        const buyBtn = e.target.closest("[data-lsr-buy-complete]");
+        if (!buyBtn) return;
+        const prodId = buyBtn.getAttribute("data-lsr-buy-complete");
+        const prod = (state.products || []).find((p) => p.id === prodId);
+        if (!prod) return;
+        const okBuy = await requestConfirmation(`Mark "${prod.name}" as Buy Complete?`, "Confirm Buy Complete");
+        if (!okBuy) return;
+
+        const nowMs = Date.now();
+        const todayIso = getTodayIsoDate();
+        const todayDisp = formatDisplayDate(todayIso);
+        if (!Array.isArray(state.lsrBoughtItems)) state.lsrBoughtItems = [];
+
+        state.lsrBoughtItems.unshift({
+          id: "lsrb_" + nowMs + "_" + Math.random().toString(36).slice(2, 5),
+          productId: prod.id,
+          itemNo: prod.itemNo || "",
+          productName: prod.name,
+          category: prod.category || "",
+          company: prod.company || "",
+          locationNo: prod.locationNo || "",
+          stockQty: Number(prod.stockQty) || 0,
+          imageData: prod.imageData || "",
+          boughtIsoDate: todayIso,
+          boughtDate: todayDisp,
+          timeDisplay: formatCurrentTimeWithSeconds(new Date(nowMs))
+        });
+
+        saveState();
+        lsrSubTab = "BOUGHT";
+        renderLowStockReportFullPage();
+        showToast(`"${prod.name}" moved to Bought`);
+      });
 
       const debouncedRenderTpv = debounceFn(renderTotalProductValueFullPage, 160);
       document.getElementById("tpvSearchInput").addEventListener("input", (e) => {
@@ -9528,12 +10306,18 @@
 
       function renderDailyOrderFullPage() {
         syncOrderSubTabButtons();
+        const titleEl = document.getElementById("dailyOrderFullPageTitle");
+        if (titleEl) {
+          titleEl.textContent = `Daily Order · ${getOrderTypeLabel(selectedOrderCategoryType)}`;
+        }
         const resetBtn = document.getElementById("clearDailyOrderDateBtn");
         if (resetBtn) {
           resetBtn.style.display = (dailyOrderFromDate || dailyOrderToDate) ? "inline-block" : "none";
         }
 
-        const allOrders = Array.isArray(state.orders) ? state.orders : [];
+        const allOrders = (Array.isArray(state.orders) ? state.orders : []).filter(
+          (ord) => (ord.orderType || "SHOP_ORDER") === selectedOrderCategoryType
+        );
         const periodOrders = allOrders.filter((ord) => {
           const oIso = ord.isoDate || toComparableIsoDate(ord.dateDisplay);
           if (dailyOrderFromDate && (!oIso || oIso < dailyOrderFromDate)) return false;
@@ -9715,16 +10499,28 @@
         if (e.target === document.getElementById("orderDeleteModal")) closeOrderDeleteModal();
       });
 
-      document.getElementById("confirmDeleteOrderBtn").addEventListener("click", () => {
+      document.getElementById("confirmDeleteOrderBtn").addEventListener("click", async () => {
         if (!selectedOrderIdForDelete) return;
         const target = (state.orders || []).find((o) => o.id === selectedOrderIdForDelete);
         const label = target ? target.productName : "Order";
-        state.orders = (state.orders || []).filter((o) => o.id !== selectedOrderIdForDelete);
-        saveState();
-        updateDrawerCounts();
-        closeOrderDeleteModal();
-        renderDailyOrderFullPage();
-        showToast(`Deleted: ${label}`);
+        const okOd = await requestConfirmation(`Delete order "${label}"?`, "Confirm Delete Order");
+        if (!okOd) return;
+
+        const executeOrderDelete = () => {
+          state.orders = (state.orders || []).filter((o) => o.id !== selectedOrderIdForDelete);
+          saveState();
+          updateDrawerCounts();
+          closeOrderDeleteModal();
+          renderDailyOrderFullPage();
+          showToast(`Deleted: ${label}`);
+        };
+
+        const ordIso = target ? (target.isoDate || toComparableIsoDate(target.dateDisplay)) : "";
+        if (ordIso && isBackdateRange(ordIso, "")) {
+          requestBackdateAccess(executeOrderDelete);
+        } else {
+          executeOrderDelete();
+        }
       });
 
       // 1-second long-press on any order card (Order List, Bought, or Delivery List)
@@ -9774,45 +10570,27 @@
       document.addEventListener("pointercancel", cancelOrderLongPress);
 
       document.getElementById("dailyOrderFromDateInput").addEventListener("change", (e) => {
-        const chosenDate = e.target.value;
-        const applyChange = () => {
-          dailyOrderFromDate = chosenDate;
-          dailyOrderPreset = "custom";
-          document.querySelectorAll("#dailyOrderQuickBtns [data-do-preset]").forEach((btn) => {
-            btn.className = "warranty-choice-btn no-wrap";
-            btn.style.padding = "8px 4px";
-            btn.style.fontSize = "12px";
-          });
-          syncDailyOrderDateInputs();
-          renderDailyOrderFullPage();
-        };
-        if (isBackdateRange(chosenDate, dailyOrderToDate)) {
-          syncDailyOrderDateInputs();
-          requestBackdateAccess(applyChange);
-        } else {
-          applyChange();
-        }
+        dailyOrderFromDate = e.target.value;
+        dailyOrderPreset = "custom";
+        document.querySelectorAll("#dailyOrderQuickBtns [data-do-preset]").forEach((btn) => {
+          btn.className = "warranty-choice-btn no-wrap";
+          btn.style.padding = "8px 4px";
+          btn.style.fontSize = "12px";
+        });
+        syncDailyOrderDateInputs();
+        renderDailyOrderFullPage();
       });
 
       document.getElementById("dailyOrderToDateInput").addEventListener("change", (e) => {
-        const chosenDate = e.target.value;
-        const applyChange = () => {
-          dailyOrderToDate = chosenDate;
-          dailyOrderPreset = "custom";
-          document.querySelectorAll("#dailyOrderQuickBtns [data-do-preset]").forEach((btn) => {
-            btn.className = "warranty-choice-btn no-wrap";
-            btn.style.padding = "8px 4px";
-            btn.style.fontSize = "12px";
-          });
-          syncDailyOrderDateInputs();
-          renderDailyOrderFullPage();
-        };
-        if (isBackdateRange(dailyOrderFromDate, chosenDate)) {
-          syncDailyOrderDateInputs();
-          requestBackdateAccess(applyChange);
-        } else {
-          applyChange();
-        }
+        dailyOrderToDate = e.target.value;
+        dailyOrderPreset = "custom";
+        document.querySelectorAll("#dailyOrderQuickBtns [data-do-preset]").forEach((btn) => {
+          btn.className = "warranty-choice-btn no-wrap";
+          btn.style.padding = "8px 4px";
+          btn.style.fontSize = "12px";
+        });
+        syncDailyOrderDateInputs();
+        renderDailyOrderFullPage();
       });
 
       document.getElementById("clearDailyOrderDateBtn").addEventListener("click", () => {
@@ -9880,12 +10658,7 @@
       document.getElementById("dailyOrderQuickBtns").addEventListener("click", (e) => {
         const btn = e.target.closest("[data-do-preset]");
         if (!btn) return;
-        const preset = btn.getAttribute("data-do-preset");
-        if (preset !== "today") {
-          requestBackdateAccess(() => applyDailyOrderPreset(preset));
-        } else {
-          applyDailyOrderPreset(preset);
-        }
+        applyDailyOrderPreset(btn.getAttribute("data-do-preset"));
       });
       document.getElementById("orderSubTabListBtn").addEventListener("click", () => {
         dailyOrderSubTab = "ORDER_LIST";
@@ -9899,6 +10672,41 @@
         dailyOrderSubTab = "DELIVERED_LIST";
         renderDailyOrderFullPage();
       });
+            function openOrderTypeChoiceModal() {
+        const m = document.getElementById("orderTypeChoiceModal");
+        if (!m) {
+          openDailyOrderFullPage();
+          return;
+        }
+        m.classList.add("open");
+        syncPlusButtonModalState();
+      }
+
+      function closeOrderTypeChoiceModal() {
+        const m = document.getElementById("orderTypeChoiceModal");
+        if (m) m.classList.remove("open");
+        syncPlusButtonModalState();
+      }
+
+      const closeOrderTypeBtn = document.getElementById("closeOrderTypeChoiceBtn");
+      if (closeOrderTypeBtn) closeOrderTypeBtn.addEventListener("click", closeOrderTypeChoiceModal);
+
+      const orderTypeModalEl = document.getElementById("orderTypeChoiceModal");
+      if (orderTypeModalEl) {
+        orderTypeModalEl.addEventListener("click", (e) => {
+          if (e.target === orderTypeModalEl) {
+            closeOrderTypeChoiceModal();
+            return;
+          }
+          const pickBtn = e.target.closest("[data-pick-order-type]");
+          if (!pickBtn) return;
+          selectedOrderCategoryType = pickBtn.getAttribute("data-pick-order-type") || "SHOP_ORDER";
+          closeOrderTypeChoiceModal();
+          openDailyOrderFullPage();
+          showToast(`${getOrderTypeLabel(selectedOrderCategoryType)} selected`);
+        });
+      }
+
       document.getElementById("openNewOrderModalBtn").addEventListener("click", openAddDailyOrderModal);
       document.getElementById("closeAddDailyOrderBtn").addEventListener("click", closeAddDailyOrderModal);
       document.getElementById("cancelAddDailyOrderBtn").addEventListener("click", closeAddDailyOrderModal);
@@ -9913,7 +10721,7 @@
         applySpecialProductNameTyping(ordProdNameEl, true);
       });
 
-      document.getElementById("addDailyOrderForm").addEventListener("submit", (e) => {
+      document.getElementById("addDailyOrderForm").addEventListener("submit", async (e) => {
         e.preventDefault();
         const customerName = ordCustNameEl.value.trim();
         const mobile = document.getElementById("orderCustMobileInput").value.trim();
@@ -9928,9 +10736,8 @@
         const confirmCustomerPart = customerName || mobile
           ? `\nCustomer: ${customerName || "—"}${mobile ? ` (${mobile})` : ""}`
           : "";
-        if (!window.confirm(`Confirm New Order?\nProduct: ${productName}\nQty: ${qty}${confirmCustomerPart}`)) {
-          return;
-        }
+        const okOrd = await requestConfirmation(`Confirm New Order? Product: ${productName}, Qty: ${qty}${confirmCustomerPart.replace(/\n/g, " · ")}`, "Confirm Order");
+        if (!okOrd) return;
 
         const nowMs = Date.now();
         const todayIso = getTodayIsoDate();
@@ -9938,6 +10745,7 @@
 
         state.orders.unshift({
           id: "ord_" + nowMs + "_" + Math.random().toString(36).slice(2, 5),
+          orderType: selectedOrderCategoryType,
           customerName,
           mobile,
           productName,
@@ -9956,7 +10764,7 @@
         showToast("Order added to Order List");
       });
 
-      document.getElementById("dailyOrderItemsList").addEventListener("click", (e) => {
+      document.getElementById("dailyOrderItemsList").addEventListener("click", async (e) => {
         if (orderLongPressFired) {
           orderLongPressFired = false;
           return;
@@ -9971,6 +10779,8 @@
           const orderId = boughtBtn.getAttribute("data-mark-order-bought");
           const target = (state.orders || []).find((o) => o.id === orderId);
           if (!target) return;
+          const okB = await requestConfirmation(`Mark order "${target.productName}" as Bought?`, "Confirm Bought");
+          if (!okB) return;
           target.status = "BOUGHT";
           target.boughtDate = formatDisplayDate(getTodayIsoDate());
           saveState();
@@ -9985,6 +10795,8 @@
         const orderId = delBtn.getAttribute("data-mark-order-delivered");
         const target = (state.orders || []).find((o) => o.id === orderId);
         if (!target) return;
+        const okD = await requestConfirmation(`Mark order "${target.productName}" as Delivered?`, "Confirm Delivery");
+        if (!okD) return;
         target.status = "DELIVERED";
         target.deliveredDate = formatDisplayDate(getTodayIsoDate());
         saveState();
@@ -10004,11 +10816,15 @@
           return;
         }
         if (sectionKey === "daily-order") {
-          openDailyOrderFullPage();
+          openOrderTypeChoiceModal();
           return;
         }
         if (sectionKey === "total-product-value") {
           openTotalProductValueFullPage();
+          return;
+        }
+        if (sectionKey === "low-stock-report") {
+          openLowStockReportFullPage();
           return;
         }
         if (sectionKey === "warranty") {
@@ -10106,7 +10922,7 @@
       });
       companyNameInput.addEventListener("input", () => formatTitleCaseTyping(companyNameInput, false));
 
-      document.getElementById("companyForm").addEventListener("submit", (e) => {
+      document.getElementById("companyForm").addEventListener("submit", async (e) => {
         e.preventDefault();
         if (!openedCategoryName) return;
         const catObj = getCategoryObj(openedCategoryName);
@@ -10125,6 +10941,12 @@
           showToast("Company already exists");
           return;
         }
+
+        const okCompSave = await requestConfirmation(
+          origName ? `Update company "${origName}" to "${newCompName}"?` : `Add company "${newCompName}" under ${catObj.name}?`,
+          origName ? "Confirm Company Update" : "Confirm Add Company"
+        );
+        if (!okCompSave) return;
 
         if (origName) {
           catObj.companies = catObj.companies.map((c) => (c === origName ? newCompName : c));
@@ -10216,10 +11038,11 @@
         if (targetComp) openCompanyModal(targetComp);
       });
 
-      document.getElementById("deleteCompanyBtn").addEventListener("click", () => {
+      document.getElementById("deleteCompanyBtn").addEventListener("click", async () => {
         const targetComp = selectedCompanyForAction;
         if (!targetComp || !openedCategoryName) return;
-        if (!window.confirm(`Delete company "${targetComp}"?`)) return;
+        const okDelC = await requestConfirmation(`Delete company "${targetComp}"?`, "Confirm Delete Company");
+        if (!okDelC) return;
         const catObj = getCategoryObj(openedCategoryName);
         if (catObj && Array.isArray(catObj.companies)) {
           catObj.companies = catObj.companies.filter((c) => c !== targetComp);
@@ -10243,15 +11066,16 @@
         if (pid) openProductModal(pid);
       });
 
-      document.getElementById("deleteProductActionBtn").addEventListener("click", () => {
+      document.getElementById("deleteProductActionBtn").addEventListener("click", async () => {
         const pid = selectedProductForAction;
         if (!pid) return;
         const target = state.products.find((p) => p.id === pid);
         const targetName = target ? target.name : "this product";
-        if (!window.confirm(`Delete product "${targetName}"?`)) return;
+        const okDelP = await requestConfirmation(`Delete product "${targetName}"?`, "Confirm Delete Product");
+        if (!okDelP) return;
         state.products = state.products.filter((p) => p.id !== pid);
         cart = cart.filter((c) => c.productId !== pid);
-        expandedProductNames.delete(pid);
+        if (expandedProductId === pid) expandedProductId = null;
         saveState();
         renderAll();
         closeProductActionModal();
@@ -10414,7 +11238,9 @@
         if (e.target === saleModal) closeSaleModal();
       });
 
-      document.getElementById("clearCartBtn").addEventListener("click", () => {
+      document.getElementById("clearCartBtn").addEventListener("click", async () => {
+        const okClr = await requestConfirmation("Clear all items from cart?", "Confirm Clear Cart");
+        if (!okClr) return;
         cart = [];
         pendingSelectedProductId = null;
         saleNameMode = "same";
@@ -10473,7 +11299,7 @@
         syncSelectedProductBoxUI();
       });
 
-      applySelectedProductToCartBtn.addEventListener("click", () => {
+      applySelectedProductToCartBtn.addEventListener("click", async () => {
         if (!pendingSelectedProductId) return;
         const prod = state.products.find((p) => p.id === pendingSelectedProductId);
         if (!prod) return;
@@ -10489,6 +11315,8 @@
         }
 
         const billItemName = saleNameMode === "glass" ? "Mobile Glass" : prod.name;
+        const okAddCart = await requestConfirmation(`Add "${billItemName}" to cart?`, "Confirm Add to Cart");
+        if (!okAddCart) return;
         const existingIdx = cart.findIndex(
           (c) => c.productId === prod.id && (c.customName || prod.name) === billItemName
         );
@@ -10614,7 +11442,7 @@
 
       saleCustAddressInput.addEventListener("input", () => formatTitleCaseTyping(saleCustAddressInput, false));
 
-      saleCheckoutForm.addEventListener("submit", (e) => {
+      saleCheckoutForm.addEventListener("submit", async (e) => {
         e.preventDefault();
         if (cart.length === 0) {
           showToast("Cart is empty");
@@ -10627,6 +11455,12 @@
           showToast("Please enter customer details");
           return;
         }
+
+        const okSale = await requestConfirmation(
+          editingLedgerId ? `Update sale bill for "${custName}"?` : `Confirm and save sale for "${custName}" (${custMobile})?`,
+          editingLedgerId ? "Confirm Sale Update" : "Confirm Sale"
+        );
+        if (!okSale) return;
 
         const existingBillToEdit = editingLedgerId
           ? state.ledger.find((l) => l.id === editingLedgerId)
@@ -10841,6 +11675,29 @@
       let activeCatLongPress = null;
       let catLongPressFired = false;
 
+      const categoryTabSearchInputEl = document.getElementById("categoryTabSearchInput");
+      const clearCategoryTabSearchBtnEl = document.getElementById("clearCategoryTabSearchBtn");
+      if (categoryTabSearchInputEl) {
+        const debouncedRenderCats = debounceFn(renderCategoriesTab, 140);
+        categoryTabSearchInputEl.addEventListener("input", (e) => {
+          categoryTabSearchQuery = e.target.value;
+          if (clearCategoryTabSearchBtnEl) {
+            clearCategoryTabSearchBtnEl.classList.toggle("visible", categoryTabSearchQuery.trim().length > 0);
+          }
+          debouncedRenderCats();
+        });
+      }
+      if (clearCategoryTabSearchBtnEl) {
+        clearCategoryTabSearchBtnEl.addEventListener("click", () => {
+          categoryTabSearchQuery = "";
+          if (categoryTabSearchInputEl) {
+            categoryTabSearchInputEl.value = "";
+            categoryTabSearchInputEl.focus();
+          }
+          renderCategoriesTab();
+        });
+      }
+
       document.getElementById("categoryManageList").addEventListener("pointerdown", (e) => {
         const card = e.target.closest(".cat-card");
         if (!card) return;
@@ -10910,7 +11767,7 @@
       document.getElementById("editCatImageOnBtn").addEventListener("click", () => setEditCategoryImageToggle(true));
       document.getElementById("editCatImageOffBtn").addEventListener("click", () => setEditCategoryImageToggle(false));
 
-      document.getElementById("editCategoryForm").addEventListener("submit", (e) => {
+      document.getElementById("editCategoryForm").addEventListener("submit", async (e) => {
         e.preventDefault();
         const oldName = document.getElementById("editCategoryOriginalName").value;
         const newName = editCategoryNameInput.value.trim();
@@ -10923,6 +11780,9 @@
           showToast("Category name already exists");
           return;
         }
+
+        const okEditCat = await requestConfirmation(`Save changes to category "${newName}"?`, "Confirm Category Update");
+        if (!okEditCat) return;
 
         const targetCat = getCategoryObj(oldName);
         if (targetCat) {
@@ -10946,10 +11806,11 @@
         showToast("Category updated");
       });
 
-      document.getElementById("deleteCategoryModalBtn").addEventListener("click", () => {
+      document.getElementById("deleteCategoryModalBtn").addEventListener("click", async () => {
         const oldName = document.getElementById("editCategoryOriginalName").value;
         if (!oldName) return;
-        if (!window.confirm(`Delete category "${oldName}"?`)) return;
+        const okDelCat = await requestConfirmation(`Delete category "${oldName}"?`, "Confirm Delete Category");
+        if (!okDelCat) return;
         state.categories = state.categories.filter((c) => c.name !== oldName);
         if (selectedCategory === oldName) {
           selectedCategory = "ALL";
@@ -10981,11 +11842,14 @@
         syncProductWarrantyField(3);
       });
 
-      document.getElementById("regenItemNoBtn").addEventListener("click", () => {
-        const editId = document.getElementById("editProductId").value.trim() || null;
-        prodItemNoInput.value = generateCategoryItemNo(prodCategorySelect.value, editId);
-        showToast("Item No. generated");
-      });
+      const regenItemNoBtnEl = document.getElementById("regenItemNoBtn");
+      if (regenItemNoBtnEl) {
+        regenItemNoBtnEl.addEventListener("click", () => {
+          const editId = document.getElementById("editProductId").value.trim() || null;
+          prodItemNoInput.value = generateCategoryItemNo(prodCategorySelect.value, editId);
+          showToast("Item No. generated");
+        });
+      }
 
       prodNameInput.addEventListener("compositionstart", () => {
         isComposingProductInput = true;
@@ -11185,11 +12049,7 @@
               openProductDetails(g.pid);
             }
           } else if (!g.moved && g.toggleNamePid) {
-            if (expandedProductNames.has(g.toggleNamePid)) {
-              expandedProductNames.delete(g.toggleNamePid);
-            } else {
-              expandedProductNames.add(g.toggleNamePid);
-            }
+            expandedProductId = (expandedProductId === g.toggleNamePid) ? null : g.toggleNamePid;
             renderHome();
             renderAllProducts();
           }
@@ -11231,7 +12091,7 @@
         }
       });
 
-      productForm.addEventListener("submit", (e) => {
+      productForm.addEventListener("submit", async (e) => {
         e.preventDefault();
         const existingId = document.getElementById("editProductId").value.trim();
         const category = prodCategorySelect.value.trim();
@@ -11247,6 +12107,8 @@
         const price = Math.max(0, parseFloat(prodPriceInput.value) || 0);
         const stockQty = Math.max(0, parseInt(document.getElementById("prodStockQty").value, 10) || 0);
         const saleQty = Math.max(0, parseInt(document.getElementById("prodSaleQty").value, 10) || 0);
+        const rawMinStock = document.getElementById("prodMinStockQty").value.trim();
+        const minStockQty = rawMinStock === "" ? 3 : Math.max(0, parseInt(rawMinStock, 10) || 0);
         const warrantyMonths = categoryHasWarranty(category)
           ? selectedProductWarrantyMonths
           : 0;
@@ -11264,10 +12126,15 @@
         }
 
         if (existingId) {
+          const okUpdP = await requestConfirmation(`Save changes to product "${name}"?`, "Confirm Product Update");
+          if (!okUpdP) return;
           const idx = state.products.findIndex((p) => p.id === existingId);
           if (idx !== -1) {
+            const prevItem = state.products[idx];
+            const idTsMatch = String(prevItem.id || "").match(/(\d{12,13})/);
+            const preservedCreatedAt = prevItem.createdAt || (idTsMatch ? parseInt(idTsMatch[1], 10) : Date.now());
             state.products[idx] = {
-              ...state.products[idx],
+              ...prevItem,
               itemNo,
               locationNo,
               barcode,
@@ -11278,15 +12145,19 @@
               price,
               stockQty,
               saleQty,
+              minStockQty,
               warrantyMonths,
+              createdAt: preservedCreatedAt,
               updatedAt: Date.now()
             };
             showToast("Product updated & saved");
           }
         } else {
-          if (!window.confirm(`Add new product "${name}" to ${category}?`)) return;
+          const okAddP = await requestConfirmation(`Add new product "${name}" to ${category}?`, "Confirm Add Product");
+          if (!okAddP) return;
+          const nowCreatedMs = Date.now();
           state.products.unshift({
-            id: "p_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6),
+            id: "p_" + nowCreatedMs + "_" + Math.random().toString(36).slice(2, 6),
             itemNo,
             locationNo,
             barcode,
@@ -11297,8 +12168,10 @@
             price,
             stockQty,
             saleQty,
+            minStockQty,
             warrantyMonths,
-            updatedAt: Date.now()
+            createdAt: nowCreatedMs,
+            updatedAt: nowCreatedMs
           });
           showToast("Product added & saved");
         }
@@ -11361,7 +12234,7 @@
         closeCompanyPicker();
       });
 
-      document.getElementById("addCategoryForm").addEventListener("submit", (e) => {
+      document.getElementById("addCategoryForm").addEventListener("submit", async (e) => {
         e.preventDefault();
         const val = newCategoryInput.value.trim();
         if (!val) return;
@@ -11369,7 +12242,8 @@
           showToast("Category already exists");
           return;
         }
-        if (!window.confirm(`Add new category "${val}"?`)) return;
+        const okAddCat = await requestConfirmation(`Add new category "${val}"?`, "Confirm New Category");
+        if (!okAddCat) return;
         state.categories.push({
           name: val,
           hasWarranty: newCategoryHasWarranty,
@@ -11397,7 +12271,9 @@
         setTimeout(() => URL.revokeObjectURL(url), 1000);
       }
 
-      document.getElementById("backupTxtBtn").addEventListener("click", () => {
+      document.getElementById("backupTxtBtn").addEventListener("click", async () => {
+        const okBak = await requestConfirmation("Download full backup (.txt) file now?", "Confirm Backup");
+        if (!okBak) return;
         recordBackupTimestamp();
         const dateTag = getTodayIsoDate();
         const txtContent = JSON.stringify(state, null, 2);
@@ -11427,7 +12303,9 @@
           return;
         }
 
-        recordBackupTimestamp();
+const okGb = await requestConfirmation(`Send backup to Gmail (${targetGmail})?`, "Confirm Gmail Backup");
+        if (!okGb) return;
+                recordBackupTimestamp();
         const dateTag = getTodayIsoDate();
         const fileName = `ms-advanced-mobicare-backup-${dateTag}.txt`;
         const txtContent = JSON.stringify(state, null, 2);
@@ -11501,6 +12379,7 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
                 returnRequests: Array.isArray(parsed.returnRequests) ? parsed.returnRequests : [],
                 damagedProducts: Array.isArray(parsed.damagedProducts) ? parsed.damagedProducts : [],
                 orders: Array.isArray(parsed.orders) ? parsed.orders : [],
+                lsrBoughtItems: Array.isArray(parsed.lsrBoughtItems) ? parsed.lsrBoughtItems : [],
                 securityPassword: typeof parsed.securityPassword === "string" ? parsed.securityPassword : (state.securityPassword || ""),
                 lastBackupDateTime: typeof parsed.lastBackupDateTime === "string" ? parsed.lastBackupDateTime : (state.lastBackupDateTime || ""),
                 backupGmailId: typeof parsed.backupGmailId === "string" ? parsed.backupGmailId : (state.backupGmailId || "")
@@ -11560,17 +12439,34 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
         if (eyeClosed) eyeClosed.style.display = isHidden ? "block" : "none";
       });
 
-      document.getElementById("setPasswordPageForm").addEventListener("submit", (e) => {
+      document.getElementById("setPasswordPageForm").addEventListener("submit", async (e) => {
         e.preventDefault();
         const inp = document.getElementById("appSecurityPasswordInput");
         if (!inp) return;
         const newPwd = inp.value.trim();
+        const okPwd = await requestConfirmation(
+          newPwd ? "Save new security password?" : "Disable security password protection?",
+          "Confirm Password Setting"
+        );
+        if (!okPwd) return;
         state.securityPassword = newPwd;
         saveState();
         syncSettingsPasswordUI();
         closeSetPasswordFullPage();
         showToast(newPwd ? "Password saved & protection enabled" : "No password set — protection disabled");
       });
+
+      let scannedBluetoothDevices = [];
+      let activeBluetoothGattServer = null;
+
+      function getCurrentBluetoothDeviceList() {
+        const list = [...scannedBluetoothDevices];
+        const connectedDev = String(state.connectedBluetoothPrinter || "").trim();
+        if (connectedDev && !list.some((d) => (typeof d === "string" ? d : (d.name || d.address || "")).toLowerCase() === connectedDev.toLowerCase())) {
+          list.unshift({ name: connectedDev, address: "CONNECTED" });
+        }
+        return list;
+      }
 
       function syncBluetoothPrinterUI() {
         const connectedDev = String(state.connectedBluetoothPrinter || "").trim();
@@ -11604,7 +12500,7 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
         const list = Array.isArray(devicesArray) ? devicesArray : [];
 
         if (list.length === 0) {
-          listEl.innerHTML = `<div class="empty-state" style="padding:14px;"><div class="empty-title">No Bluetooth Printers Listed</div><p class="empty-desc" style="margin-bottom:0;">Tap "Scan Bluetooth Devices" or enter your printer name below.</p></div>`;
+          listEl.innerHTML = `<div class="empty-state" style="padding:14px;"><div class="empty-title">No Bluetooth Printers Shown</div><p class="empty-desc" style="margin-bottom:0;">Tap "Scan Bluetooth Devices" to search via Bluetooth or enter your printer name below.</p></div>`;
           return;
         }
 
@@ -11628,37 +12524,69 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
 
       async function scanAndLoadBluetoothPrinters() {
         const statusEl = document.getElementById("btScanStatusMessage");
-        if (statusEl) statusEl.textContent = "Scanning nearby Bluetooth printers...";
+        if (statusEl) statusEl.textContent = "Searching Bluetooth devices...";
 
-        // 1. Web Bluetooth API (Chrome / Android browser)
+        // 1. Cordova BluetoothSerial plugin (if packaged in Cordova Android APK)
+        if (window.bluetoothSerial && typeof window.bluetoothSerial.list === "function") {
+          window.bluetoothSerial.list(
+            (pairedList) => {
+              const found = (Array.isArray(pairedList) ? pairedList : []).map((d) => ({
+                name: d.name || d.address || "Bluetooth Printer",
+                address: d.address || ""
+              }));
+              scannedBluetoothDevices = found;
+              renderBluetoothDevicesList(getCurrentBluetoothDeviceList());
+              if (statusEl) {
+                statusEl.textContent = found.length > 0
+                  ? `Found ${found.length} Bluetooth device(s). Tap to connect.`
+                  : "No paired Bluetooth printer found. Pair in phone Bluetooth settings or enter name below.";
+              }
+            },
+            () => {
+              renderBluetoothDevicesList(getCurrentBluetoothDeviceList());
+              if (statusEl) statusEl.textContent = "Could not scan Bluetooth devices. Check Bluetooth permission.";
+            }
+          );
+          return;
+        }
+
+        // 2. Web Bluetooth API (Chrome / Android browser)
         if (navigator.bluetooth && typeof navigator.bluetooth.requestDevice === "function") {
           try {
             const device = await navigator.bluetooth.requestDevice({
               acceptAllDevices: true,
-              optionalServices: ["000018f0-0000-1000-8000-00805f9b34fb", "0000ff00-0000-1000-8000-00805f9b34fb"]
+              optionalServices: [
+                "000018f0-0000-1000-8000-00805f9b34fb",
+                "0000ff00-0000-1000-8000-00805f9b34fb",
+                "e7810a71-73ae-499d-8c15-faa9aef0c3f2"
+              ]
             });
             if (device) {
               const foundName = device.name || device.id || "Bluetooth Thermal Printer";
+              scannedBluetoothDevices = [{ name: foundName, address: device.id || "" }];
               state.connectedBluetoothPrinter = foundName;
               saveState();
+              if (device.gatt && typeof device.gatt.connect === "function") {
+                try {
+                  activeBluetoothGattServer = await device.gatt.connect();
+                } catch (gattErr) {}
+              }
               syncBluetoothPrinterUI();
-              renderBluetoothDevicesList([{ name: foundName, address: device.id || "" }]);
-              if (statusEl) statusEl.textContent = `Connected to ${foundName}`;
+              renderBluetoothDevicesList(getCurrentBluetoothDeviceList());
+              if (statusEl) statusEl.textContent = `Connected via Bluetooth: ${foundName}`;
               showToast(`Bluetooth Printer Connected: ${foundName}`);
               return;
             }
           } catch (btErr) {
-            if (statusEl) statusEl.textContent = "Bluetooth scan cancelled or unavailable on this device.";
+            renderBluetoothDevicesList(getCurrentBluetoothDeviceList());
+            if (statusEl) statusEl.textContent = "Bluetooth scan cancelled or not supported on this browser.";
+            return;
           }
         }
 
-        const fallbackPrinters = [
-          { name: "MTP-II 58mm Thermal Printer", address: "BT-2INCH" },
-          { name: "RPP02N 58mm POS Printer", address: "BT-POS" }
-        ];
-        renderBluetoothDevicesList(fallbackPrinters);
-        if (statusEl && !statusEl.textContent) {
-          statusEl.textContent = "Select a printer below or type your Bluetooth printer name.";
+        renderBluetoothDevicesList(getCurrentBluetoothDeviceList());
+        if (statusEl) {
+          statusEl.textContent = "Bluetooth scan not supported here. Enter your Bluetooth printer name below to connect.";
         }
       }
 
@@ -11666,10 +12594,13 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
         syncBluetoothPrinterUI();
         const manualInp = document.getElementById("manualBtPrinterNameInput");
         if (manualInp) manualInp.value = state.connectedBluetoothPrinter || "";
-        renderBluetoothDevicesList([
-          { name: "MTP-II 58mm Thermal Printer", address: "BT-2INCH" },
-          { name: "RPP02N 58mm POS Printer", address: "BT-POS" }
-        ]);
+        renderBluetoothDevicesList(getCurrentBluetoothDeviceList());
+        const statusEl = document.getElementById("btScanStatusMessage");
+        if (statusEl) {
+          statusEl.textContent = state.connectedBluetoothPrinter
+            ? `Connected: ${state.connectedBluetoothPrinter}`
+            : 'Tap "Scan Bluetooth Devices" to search for printers.';
+        }
         document.getElementById("printerConnectFullPage").classList.add("open");
         syncPlusButtonModalState();
       }
@@ -11693,14 +12624,21 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
       }
       const disconnBtBtn = document.getElementById("disconnectBluetoothPrinterBtn");
       if (disconnBtBtn) {
-        disconnBtBtn.addEventListener("click", () => {
+        disconnBtBtn.addEventListener("click", async () => {
+          const okDisc = await requestConfirmation("Disconnect connected Bluetooth printer?", "Confirm Disconnect");
+          if (!okDisc) return;
+          if (activeBluetoothGattServer && activeBluetoothGattServer.connected) {
+            try {
+              activeBluetoothGattServer.disconnect();
+            } catch (e) {}
+          }
+          activeBluetoothGattServer = null;
           state.connectedBluetoothPrinter = "";
           saveState();
           syncBluetoothPrinterUI();
-          renderBluetoothDevicesList([
-            { name: "MTP-II 58mm Thermal Printer", address: "BT-2INCH" },
-            { name: "RPP02N 58mm POS Printer", address: "BT-POS" }
-          ]);
+          renderBluetoothDevicesList(getCurrentBluetoothDeviceList());
+          const statusEl = document.getElementById("btScanStatusMessage");
+          if (statusEl) statusEl.textContent = "Bluetooth printer disconnected.";
           showToast("Bluetooth Printer Disconnected");
         });
       }
@@ -11796,11 +12734,13 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
 
       const tcForm = document.getElementById("addTermConditionForm");
       if (tcForm) {
-        tcForm.addEventListener("submit", (e) => {
+        tcForm.addEventListener("submit", async (e) => {
           e.preventDefault();
           const inp = document.getElementById("newTermConditionInput");
           const textVal = inp ? inp.value.trim() : "";
           if (!textVal) return;
+          const okTcAdd = await requestConfirmation("Save this term & condition?", "Confirm Condition");
+          if (!okTcAdd) return;
           if (!Array.isArray(state.termsAndConditions)) state.termsAndConditions = [];
           state.termsAndConditions.push(textVal);
           saveState();
@@ -11815,12 +12755,14 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
 
       const tcListEl = document.getElementById("termsConditionsSavedList");
       if (tcListEl) {
-        tcListEl.addEventListener("click", (e) => {
+        tcListEl.addEventListener("click", async (e) => {
           const delBtn = e.target.closest("[data-delete-tc-idx]");
           if (!delBtn) return;
           const idx = parseInt(delBtn.getAttribute("data-delete-tc-idx"), 10);
           if (Number.isNaN(idx)) return;
           if (!Array.isArray(state.termsAndConditions)) return;
+          const okTcDel = await requestConfirmation("Remove this term & condition?", "Confirm Remove Condition");
+          if (!okTcDel) return;
           state.termsAndConditions.splice(idx, 1);
           saveState();
           syncTermsConditionsUI();
@@ -11995,6 +12937,8 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
 
         if (settingsLogoutBtn) {
           settingsLogoutBtn.addEventListener("click", async () => {
+            const okLogout = await requestConfirmation("Log out from your account?", "Confirm Logout");
+            if (!okLogout) return;
             if (unsubscribeDoc) {
               unsubscribeDoc();
               unsubscribeDoc = null;
@@ -12052,5 +12996,364 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
       })();
     })();
   </script>
+
+  <script src="cordova.js"></script>
+  <script>
+    (function () {
+      const toastEl = document.getElementById("toastBanner");
+      let toastTimer = null;
+
+      function showBridgeToast(msg) {
+        if (!toastEl) return;
+        toastEl.textContent = String(msg || "");
+        toastEl.classList.add("show");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toastEl.classList.remove("show"), 2600);
+      }
+
+      window.MSAppNativeBridge = {
+        notify: showBridgeToast,
+        connectedMac: localStorage.getItem("ms_bt_printer_mac") || "",
+        connectedName: localStorage.getItem("ms_bt_printer_name") || ""
+      };
+
+      // Request runtime Android permissions (Camera, Bluetooth Scan/Connect, Location, Storage)
+      function requestAllAndroidPermissions() {
+        return new Promise((resolve) => {
+          const perms = window.cordova && window.cordova.plugins && window.cordova.plugins.permissions;
+          if (!perms) {
+            resolve(false);
+            return;
+          }
+
+          const permissionList = [
+            perms.CAMERA,
+            perms.BLUETOOTH_SCAN,
+            perms.BLUETOOTH_CONNECT,
+            perms.ACCESS_FINE_LOCATION,
+            perms.ACCESS_COARSE_LOCATION,
+            perms.READ_EXTERNAL_STORAGE,
+            perms.WRITE_EXTERNAL_STORAGE
+          ].filter(Boolean);
+
+          perms.requestPermissions(
+            permissionList,
+            (status) => {
+              resolve(Boolean(status && status.hasPermission));
+            },
+            (err) => {
+              console.warn("Permission request error:", err);
+              resolve(false);
+            }
+          );
+        });
+      }
+
+      window.MSAppNativeBridge.requestAllAndroidPermissions = requestAllAndroidPermissions;
+
+      // Open native Cordova BarcodeScanner when available, else fallback to WebView camera stream
+      async function launchNativeScannerIfAvailable() {
+        await requestAllAndroidPermissions();
+        const statusEl = document.getElementById("scannerStatusText");
+        const manualInput = document.getElementById("manualScanCodeInput");
+        const applyBtn = document.getElementById("applyScannedCodeBtn");
+
+        if (window.cordova && window.cordova.plugins && window.cordova.plugins.barcodeScanner) {
+          if (statusEl) statusEl.textContent = "Opening camera scanner...";
+          window.cordova.plugins.barcodeScanner.scan(
+            (result) => {
+              if (!result.cancelled && result.text) {
+                if (manualInput) {
+                  manualInput.value = result.text;
+                  manualInput.dispatchEvent(new Event("input", { bubbles: true }));
+                }
+                if (applyBtn) {
+                  applyBtn.click();
+                } else {
+                  showBridgeToast("Scanned: " + result.text);
+                }
+              }
+            },
+            (err) => {
+              if (statusEl) statusEl.textContent = "Native scanner error. Use image scan or enter code.";
+              console.warn("BarcodeScanner error:", err);
+            },
+            {
+              preferFrontCamera: false,
+              showFlipCameraButton: true,
+              showTorchButton: true,
+              prompt: "Place QR / Barcode inside the scan area",
+              formats: "QR_CODE,EAN_13,EAN_8,CODE_128,CODE_39,UPC_A,UPC_E,DATA_MATRIX",
+              orientation: "portrait"
+            }
+          );
+          return true;
+        }
+        return false;
+      }
+
+      // Save and open generated PDF files via Cordova File + FileOpener2 with browser fallback
+      async function saveAndOpenPdfFile(fileName, pdfBlobOrArrayBuffer) {
+        const cleanName = String(fileName || "Report.pdf").replace(/[^a-zA-Z0-9._-]/g, "_");
+        const finalName = cleanName.toLowerCase().endsWith(".pdf") ? cleanName : cleanName + ".pdf";
+
+        let blob = pdfBlobOrArrayBuffer;
+        if (!(blob instanceof Blob)) {
+          blob = new Blob([pdfBlobOrArrayBuffer], { type: "application/pdf" });
+        }
+
+        const triggerFallback = () => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = finalName;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(url), 4000);
+        };
+
+        if (!window.cordova || !window.resolveLocalFileSystemURL || !window.cordova.file) {
+          triggerFallback();
+          showBridgeToast("PDF ready: " + finalName);
+          return finalName;
+        }
+
+        await requestAllAndroidPermissions();
+        const targetDir =
+          window.cordova.file.externalDataDirectory ||
+          window.cordova.file.cacheDirectory ||
+          window.cordova.file.dataDirectory;
+
+        return new Promise((resolve, reject) => {
+          window.resolveLocalFileSystemURL(
+            targetDir,
+            (dirEntry) => {
+              dirEntry.getFile(
+                finalName,
+                { create: true, exclusive: false },
+                (fileEntry) => {
+                  fileEntry.createWriter(
+                    (fileWriter) => {
+                      fileWriter.onwriteend = () => {
+                        const nativeUrl = fileEntry.toURL();
+                        showBridgeToast("PDF saved: " + finalName);
+                        if (window.cordova.plugins && window.cordova.plugins.fileOpener2) {
+                          window.cordova.plugins.fileOpener2.open(nativeUrl, "application/pdf", {
+                            error: () => showBridgeToast("PDF saved in app storage")
+                          });
+                        }
+                        resolve(nativeUrl);
+                      };
+                      fileWriter.onerror = (e) => {
+                        triggerFallback();
+                        reject(e);
+                      };
+                      fileWriter.write(blob);
+                    },
+                    (err) => {
+                      triggerFallback();
+                      reject(err);
+                    }
+                  );
+                },
+                (err) => {
+                  triggerFallback();
+                  reject(err);
+                }
+              );
+            },
+            (err) => {
+              triggerFallback();
+              reject(err);
+            }
+          );
+        });
+      }
+
+      window.MSAppNativeBridge.saveAndOpenPdfFile = saveAndOpenPdfFile;
+
+      // Bluetooth Serial printer scan, connect, and ESC/POS write
+      function updatePrinterBadgeUI(connected, labelText) {
+        const badge = document.getElementById("btPrinterHeaderBadge");
+        const statusText = document.getElementById("btScanStatusMessage");
+        const discBtn = document.getElementById("disconnectBluetoothPrinterBtn");
+        if (badge) {
+          badge.textContent = connected ? "Connected" : "Not Connected";
+          badge.className = (connected ? "warranty-badge-yes" : "warranty-badge-no") + " no-wrap";
+        }
+        if (discBtn) {
+          discBtn.style.display = connected ? "inline-block" : "none";
+        }
+        if (statusText && labelText) {
+          statusText.textContent = labelText;
+        }
+      }
+
+      async function scanBluetoothPrintersNative() {
+        await requestAllAndroidPermissions();
+        const listEl = document.getElementById("btPrinterDevicesList");
+        if (!window.bluetoothSerial) {
+          updatePrinterBadgeUI(false, "BluetoothSerial plugin not loaded in this build.");
+          return;
+        }
+
+        updatePrinterBadgeUI(false, "Checking Bluetooth status...");
+        if (listEl) listEl.innerHTML = "";
+
+        window.bluetoothSerial.isEnabled(
+          () => {
+            updatePrinterBadgeUI(false, "Listing paired Bluetooth printers...");
+            window.bluetoothSerial.list(
+              (devices) => {
+                if (!devices || devices.length === 0) {
+                  updatePrinterBadgeUI(false, "No paired Bluetooth devices found. Pair printer in phone Bluetooth settings first.");
+                  return;
+                }
+                updatePrinterBadgeUI(false, `Found ${devices.length} paired device(s). Tap to connect:`);
+                if (!listEl) return;
+                listEl.innerHTML = devices
+                  .map((dev) => {
+                    const name = dev.name || "Thermal Printer";
+                    const mac = dev.address || dev.id || "";
+                    const isCurr = window.MSAppNativeBridge.connectedMac === mac;
+                    return `
+                      <button type="button" class="picker-option ${isCurr ? "selected" : ""}" data-bt-mac="${mac}" data-bt-name="${name}">
+                        <span class="picker-opt-left">
+                          <span class="picker-opt-name">${name}</span>
+                        </span>
+                        <span class="picker-opt-count">${isCurr ? "Connected" : mac}</span>
+                      </button>
+                    `;
+                  })
+                  .join("");
+
+                listEl.querySelectorAll("[data-bt-mac]").forEach((btn) => {
+                  btn.addEventListener("click", () => {
+                    connectBluetoothPrinterNative(
+                      btn.getAttribute("data-bt-mac"),
+                      btn.getAttribute("data-bt-name")
+                    );
+                  });
+                });
+              },
+              (err) => {
+                updatePrinterBadgeUI(false, "Could not list Bluetooth devices.");
+                console.warn("BT list error:", err);
+              }
+            );
+          },
+          () => {
+            showBridgeToast("Enabling Bluetooth...");
+            window.bluetoothSerial.enable(
+              () => scanBluetoothPrintersNative(),
+              () => updatePrinterBadgeUI(false, "Please enable Bluetooth on your phone.")
+            );
+          }
+        );
+      }
+
+      function connectBluetoothPrinterNative(macAddress, deviceName) {
+        if (!window.bluetoothSerial || !macAddress) return;
+        updatePrinterBadgeUI(false, `Connecting to ${deviceName || macAddress}...`);
+        window.bluetoothSerial.connect(
+          macAddress,
+          () => {
+            window.MSAppNativeBridge.connectedMac = macAddress;
+            window.MSAppNativeBridge.connectedName = deviceName || macAddress;
+            localStorage.setItem("ms_bt_printer_mac", macAddress);
+            localStorage.setItem("ms_bt_printer_name", window.MSAppNativeBridge.connectedName);
+            updatePrinterBadgeUI(true, `Connected to ${window.MSAppNativeBridge.connectedName} (${macAddress})`);
+            showBridgeToast("Bluetooth printer connected");
+          },
+          (err) => {
+            updatePrinterBadgeUI(false, "Failed to connect. Ensure printer is turned ON.");
+            showBridgeToast("Printer connection failed");
+            console.warn("BT connect error:", err);
+          }
+        );
+      }
+
+      function printEscPosText(plainText) {
+        if (!window.bluetoothSerial || !window.MSAppNativeBridge.connectedMac) return false;
+        const mac = window.MSAppNativeBridge.connectedMac;
+        const payload = "@" + String(plainText || "") + "
+
+
+VA ";
+
+        const sendRaw = () => {
+          window.bluetoothSerial.write(
+            payload,
+            () => showBridgeToast("Printed on thermal printer"),
+            () => showBridgeToast("Thermal print write failed")
+          );
+        };
+
+        window.bluetoothSerial.isConnected(
+          () => sendRaw(),
+          () => {
+            window.bluetoothSerial.connect(mac, () => sendRaw(), () => {});
+          }
+        );
+        return true;
+      }
+
+      window.MSAppNativeBridge.printEscPosText = printEscPosText;
+
+      document.addEventListener("deviceready", async () => {
+        await requestAllAndroidPermissions();
+        if (window.MSAppNativeBridge.connectedMac && window.bluetoothSerial) {
+          connectBluetoothPrinterNative(
+            window.MSAppNativeBridge.connectedMac,
+            window.MSAppNativeBridge.connectedName
+          );
+        }
+      }, false);
+
+      window.addEventListener("DOMContentLoaded", () => {
+        ["searchScanBtn", "addScanBtn", "warrantyScanCodeBtn"].forEach((id) => {
+          const btn = document.getElementById(id);
+          if (btn) {
+            btn.addEventListener("click", () => {
+              requestAllAndroidPermissions();
+            });
+          }
+        });
+
+        const scanBtBtn = document.getElementById("scanBluetoothPrintersBtn");
+        if (scanBtBtn) {
+          scanBtBtn.addEventListener("click", scanBluetoothPrintersNative);
+        }
+
+        const discBtn = document.getElementById("disconnectBluetoothPrinterBtn");
+        if (discBtn) {
+          discBtn.addEventListener("click", () => {
+            if (window.bluetoothSerial && window.bluetoothSerial.disconnect) {
+              window.bluetoothSerial.disconnect(() => {}, () => {});
+            }
+            window.MSAppNativeBridge.connectedMac = "";
+            window.MSAppNativeBridge.connectedName = "";
+            localStorage.removeItem("ms_bt_printer_mac");
+            localStorage.removeItem("ms_bt_printer_name");
+            updatePrinterBadgeUI(false, "Disconnected.");
+            showBridgeToast("Printer disconnected");
+          });
+        }
+
+        // Attach native scanner helper on scanner modal open
+        const scannerModal = document.getElementById("scannerModal");
+        if (scannerModal) {
+          const obs = new MutationObserver(() => {
+            if (scannerModal.classList.contains("open")) {
+              launchNativeScannerIfAvailable();
+            }
+          });
+          obs.observe(scannerModal, { attributes: true, attributeFilter: ["class"] });
+        }
+      });
+    })();
+  </script>
+
 </body>
 </html>
