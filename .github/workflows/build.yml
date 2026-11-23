@@ -103,8 +103,20 @@ jobs:
 
           cordova create cordova_app com.faruk.msadvancedmobicare "MS ADVANCED MOBICARE"
           if [ -f "config.xml" ]; then
-            cp config.xml cordova_app/config.xml
+            sed 's/phonegap-plugin-barcodescanner/cordova-plugin-mlkit-barcode-scanner/g' config.xml > cordova_app/config.xml
           fi
+
+          printf '%s\n' \
+            '{' \
+            '  "android": {' \
+            '    "debug": {' \
+            '      "compileSdkVersion": 34,' \
+            '      "targetSdkVersion": 34,' \
+            '      "minSdkVersion": 24' \
+            '    }' \
+            '  }' \
+            '}' > cordova_app/build.json
+
           if [ -d "res" ]; then
             cp -r res cordova_app/res
           fi
@@ -128,7 +140,7 @@ jobs:
           export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/cmdline-tools/16.0/bin:$ANDROID_HOME/platform-tools:$PATH"
 
           cd cordova_app
-          cordova build android --debug --no-telemetry
+          cordova build android --debug --no-telemetry -- --gradleArg=-PcdvCompileSdkVersion=34
           cd ..
           APK_FILE=$(find . -type f -name "*.apk" | head -n 1)
           echo "Found APK: $APK_FILE"
