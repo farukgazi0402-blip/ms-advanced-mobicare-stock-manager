@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <widget id="com.faruk.msadvancedmobicare" version="1.0.0" xmlns="http://www.w3.org/ns/widgets" xmlns:android="http://schemas.android.com/apk/res/android" xmlns:cdv="http://cordova.apache.org/ns/1.0">
     <name>MS ADVANCED MOBICARE</name>
-    <description>MS ADVANCED MOBICARE application with PDF generation, file opening, and sharing support</description>
+    <description>MS ADVANCED MOBICARE application with QR/Barcode scanner, Bluetooth printer support, PDF generation, file opening, and sharing support</description>
     <author email="support@example.com" href="">Faruk Gazi</author>
     <content src="index.html" />
     <access origin="*" />
@@ -30,7 +30,23 @@
         <preference name="android-minSdkVersion" value="24" />
         <preference name="android-targetSdkVersion" value="34" />
 
-        <config-file target="AndroidManifest.xml" parent="/*">
+        <config-file target="AndroidManifest.xml" parent="/manifest">
+            <!-- Camera & QR/Barcode Scanner -->
+            <uses-permission android:name="android.permission.CAMERA" />
+            <uses-feature android:name="android.hardware.camera" android:required="false" />
+            <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+
+            <!-- Bluetooth (Android 12+ & Legacy) -->
+            <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+            <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+            <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
+            <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+            <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
+            <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="30" />
+
+            <!-- Storage / PDF -->
+            <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+            <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
             <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
         </config-file>
 
@@ -55,7 +71,13 @@
         <resource-file src="res/layout/splash_screen.xml" target="app/src/main/res/layout/splash_screen.xml" />
     </platform>
 
+    <!-- PDF, File & Sharing -->
     <plugin name="cordova-plugin-file" spec="^8.1.0" />
     <plugin name="cordova-plugin-file-opener2" spec="^4.0.0" />
     <plugin name="cordova-plugin-x-socialsharing" spec="^6.0.4" />
+
+    <!-- Runtime Permissions, QR/Barcode Scanner & Bluetooth -->
+    <plugin name="cordova-plugin-android-permissions" />
+    <plugin name="phonegap-plugin-barcodescanner" />
+    <plugin name="cordova-plugin-bluetooth-serial" />
 </widget>
