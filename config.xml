@@ -34,6 +34,10 @@
         <preference name="StatusBarOverlaysWebView" value="false" />
         <preference name="StatusBarBackgroundColor" value="#ffffff" />
 
+        <edit-config file="app/src/main/AndroidManifest.xml" mode="merge" target="/manifest">
+            <manifest xmlns:tools="http://schemas.android.com/tools" />
+        </edit-config>
+
         <config-file target="AndroidManifest.xml" parent="/manifest">
             <!-- Camera & QR/Barcode Scanner -->
             <uses-permission android:name="android.permission.CAMERA" />
