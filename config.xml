@@ -44,7 +44,7 @@
             <uses-feature android:name="android.hardware.camera" android:required="false" />
             <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 
-            <!-- Android 13+ Media Permission (Non-conflicting with File/Bluetooth plugins) -->
+            <!-- Android 13+ Media Permission & Bluetooth -->
             <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
             <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
             <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
