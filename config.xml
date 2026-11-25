@@ -7,6 +7,7 @@
     <access origin="*" />
     <allow-intent href="http://*/*" />
     <allow-intent href="https://*/*" />
+    <allow-intent href="file://*/*" />
     <allow-intent href="content://*/*" />
     <allow-intent href="intent:*" />
     <allow-intent href="whatsapp:*" />
@@ -23,6 +24,8 @@
     <preference name="AndroidWindowSplashScreenBackground" value="#ffffff" />
     <preference name="BackgroundColor" value="0xFFFFFFFF" />
     <preference name="AndroidPersistentFileLocation" value="Compatibility" />
+    <preference name="AndroidExtraFilesystems" value="files,files-external,documents,sdcard,cache,cache-external,assets,root" />
+    <preference name="AndroidInsecureFileModeEnabled" value="true" />
     <preference name="AllowInlineMediaPlayback" value="true" />
 
     <platform name="android">
@@ -36,26 +39,37 @@
         <preference name="StatusBarStyle" value="default" />
 
         <config-file target="AndroidManifest.xml" parent="/manifest">
+            <!-- Storage & File Access for PDF Creation & Viewing -->
+            <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+            <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
+            <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+
             <!-- Camera & QR/Barcode Scanner -->
             <uses-permission android:name="android.permission.CAMERA" />
             <uses-feature android:name="android.hardware.camera" android:required="false" />
             <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 
-            <!-- Additional Bluetooth & Media Permissions -->
+            <!-- Bluetooth Printer Permissions -->
+            <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+            <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
             <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
             <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
             <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
-            <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
         </config-file>
 
         <config-file target="AndroidManifest.xml" parent="/manifest/queries">
             <intent>
                 <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="application/pdf" />
             </intent>
             <intent>
                 <action android:name="android.intent.action.SEND" />
                 <data android:mimeType="application/pdf" />
+            </intent>
+            <intent>
+                <action android:name="android.intent.action.SEND" />
+                <data android:mimeType="image/*" />
             </intent>
             <package android:name="com.whatsapp" />
             <package android:name="com.whatsapp.w4b" />
