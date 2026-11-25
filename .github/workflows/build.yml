@@ -24,6 +24,16 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Cache Gradle Packages & Wrapper
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/config.xml', '**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
       - name: Install Android SDK Packages
         run: |
           export ANDROID_HOME=/usr/local/lib/android/sdk
@@ -140,7 +150,18 @@ jobs:
           export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/cmdline-tools/16.0/bin:$ANDROID_HOME/platform-tools:$PATH"
 
           cd cordova_app
-          cordova build android --debug --no-telemetry -- --gradleArg=-PcdvCompileSdkVersion=34
+          attempt=1
+          max_attempts=3
+          until cordova build android --debug --no-telemetry -- --gradleArg=-PcdvCompileSdkVersion=34; do
+            if [ "$attempt" -ge "$max_attempts" ]; then
+              echo "Gradle build failed after $max_attempts attempts."
+              exit 1
+            fi
+            wait_sec=$((attempt * 20))
+            echo "Gradle build attempt $attempt failed (possible rate-limit). Retrying in ${wait_sec}s..."
+            sleep "$wait_sec"
+            attempt=$((attempt + 1))
+          done
           cd ..
           APK_FILE=$(find . -type f -name "*.apk" | head -n 1)
           echo "Found APK: $APK_FILE"
