@@ -33,6 +33,7 @@
         <preference name="android-compileSdkVersion" value="34" />
         <preference name="StatusBarOverlaysWebView" value="false" />
         <preference name="StatusBarBackgroundColor" value="#ffffff" />
+        <preference name="StatusBarStyle" value="default" />
 
         <config-file target="AndroidManifest.xml" parent="/manifest">
             <!-- Camera & QR/Barcode Scanner -->
