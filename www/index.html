@@ -1386,6 +1386,11 @@
       display: block;
     }
 
+    input[type="text"],
+    textarea:not(#prodName):not(#orderProductNameInput) {
+      text-transform: uppercase;
+    }
+
     .text-input:focus, .prod-name-field:focus, .auto-expand-textarea:focus {
       border-color: var(--primary);
       background: #ffffff;
@@ -2666,6 +2671,14 @@
         <h1 class="brand-title">MS ADVANCED MOBICARE</h1>
         <p class="brand-subtitle">Mobile Shop Stock Manager</p>
       </div>
+      <button type="button" id="productsSortTriggerBtn" class="btn-three-line no-wrap" aria-label="Sort Products" title="Sort By" style="display:none;position:relative;background:#eef2ff;border-color:#c7d2fe;color:#4f46e5;">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 6h18"></path>
+          <path d="M7 12h10"></path>
+          <path d="M10 18h4"></path>
+        </svg>
+        <span id="productsSortActiveDot" style="display:none;position:absolute;top:5px;right:5px;width:7px;height:7px;border-radius:50%;background:#e11d48;"></span>
+      </button>
     </header>
 
     <!-- Movable Floating '+' Button -->
@@ -3745,6 +3758,19 @@
     </div>
   </div>
 
+  <!-- Sort By Picker Modal (All Products) -->
+  <div id="productsSortModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="productsSortModalTitle" style="z-index:84;">
+    <div class="modal-sheet" style="max-width:440px;">
+      <div class="modal-header">
+        <h3 id="productsSortModalTitle" class="modal-title no-wrap">Sort Products By</h3>
+        <button type="button" id="closeProductsSortModalBtn" class="modal-close no-wrap" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body" style="gap:8px;">
+        <div id="productsSortOptionsList" class="picker-list" style="margin-top:0;"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Product Details Modal (Top QR Code + Full Details only, No Edit/Delete buttons) -->
   <div id="productDetailModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="detailModalTitle">
     <div class="modal-sheet">
@@ -3767,7 +3793,7 @@
         <input type="hidden" id="editProductId" />
 
         <div>
-          <label for="prodName" class="field-label no-wrap">Product Name * (ALL CAPS except Pro &amp; Plus)</label>
+          <label for="prodName" class="field-label no-wrap">Product Name * (ALL CAPS except Pro, Plus &amp; Note)</label>
           <textarea id="prodName" class="prod-name-field" rows="1" placeholder="e.g., INFINIX NOTE 40 Pro Plus..." autocomplete="off" spellcheck="false" required></textarea>
 
           <div id="productLiveMatches" class="live-match-box">
@@ -4371,6 +4397,7 @@
       let selectedCategory = "ALL";
       let selectedCompany = "ALL";
       let searchQuery = "";
+      let productSortBy = "DEFAULT";
       let categoryTabSearchQuery = "";
       let warrantySearchQuery = "";
       let warrantyFromDate = "";
@@ -4765,11 +4792,6 @@
 
       function fitProductNameHeight(el) {
         if (!el) return;
-        const val = el.value || "";
-        if (val.length < 28 && !val.includes("\n")) {
-          if (el.style.height !== "44px") el.style.height = "44px";
-          return;
-        }
         el.style.height = "44px";
         const nextHeight = Math.max(44, el.scrollHeight);
         el.style.height = nextHeight + "px";
@@ -4777,11 +4799,6 @@
 
       function autoExpandTextarea(el) {
         if (!el) return;
-        const val = el.value || "";
-        if (val.length < 28 && !val.includes("\n")) {
-          if (el.style.height !== "44px") el.style.height = "44px";
-          return;
-        }
         el.style.height = "44px";
         el.style.height = Math.max(44, el.scrollHeight) + "px";
       }
@@ -4790,42 +4807,108 @@
         return String(str || "")
           .toUpperCase()
           .replace(/\bPRO\b/g, "Pro")
-          .replace(/\bPLUS\b/g, "Plus");
+          .replace(/\bPLUS\b/g, "Plus")
+          .replace(/\bNOTE\b/g, "Note");
       }
 
       let isComposingProductInput = false;
-      function applySpecialProductNameTyping(el, isTextarea) {
-        if (!el || isComposingProductInput) return;
-        const start = el.selectionStart;
-        const end = el.selectionEnd;
+      function applySpecialProductNameTyping(el, isTextarea, isBlurOrCommit) {
+        if (!el) return;
+        if (isTextarea) fitProductNameHeight(el);
+        // Never mutate el.value mid-typing on Android keyboard spacebar/IME composition,
+        // because rewriting el.value during space/autocomplete erases the typed word!
+        if (isComposingProductInput || el.dataset.composing === "1") return;
+        if (!isBlurOrCommit) return;
         const val = el.value;
         const formatted = formatSpecialProductName(val);
         if (formatted !== val) {
           el.value = formatted;
-          if (typeof start === "number" && typeof end === "number") {
-            const safeStart = Math.min(start, formatted.length);
-            const safeEnd = Math.min(end, formatted.length);
-            el.setSelectionRange(safeStart, safeEnd);
-          }
         }
         if (isTextarea) fitProductNameHeight(el);
       }
 
-      function formatTitleCaseTyping(el, isProdName) {
+      function formatTitleCaseTyping(el, isProdName, isBlurOrCommit) {
         if (!el) return;
-        const start = el.selectionStart;
-        const end = el.selectionEnd;
+        if (isProdName) fitProductNameHeight(el);
+        else if (el.tagName === "TEXTAREA") autoExpandTextarea(el);
+        if (el.dataset.composing === "1") return;
         const val = el.value;
-        const formatted = val.replace(/(^|\s+)([a-z])/g, (match, sep, ch) => sep + ch.toUpperCase());
+        const formatted = isProdName ? formatSpecialProductName(val) : val.toUpperCase();
         if (formatted !== val) {
+          const start = el.selectionStart;
+          const end = el.selectionEnd;
           el.value = formatted;
           if (typeof start === "number" && typeof end === "number") {
-            el.setSelectionRange(start, end);
+            el.setSelectionRange(Math.min(start, formatted.length), Math.min(end, formatted.length));
           }
         }
         if (isProdName) fitProductNameHeight(el);
-        else autoExpandTextarea(el);
+        else if (el.tagName === "TEXTAREA") autoExpandTextarea(el);
       }
+
+      // Global ALL CAPS enforcement across all text inputs & textareas (with Pro, Plus, Note exception on Product Name fields)
+      const PRODUCT_NAME_FIELD_IDS = new Set(["prodName", "orderProductNameInput"]);
+
+      function enforceGlobalCapsOnField(el, forceCommit) {
+        if (!el) return;
+        if (el.tagName === "INPUT") {
+          const t = (el.getAttribute("type") || "text").toLowerCase();
+          if (t !== "text" && t !== "search") return;
+        } else if (el.tagName !== "TEXTAREA") {
+          return;
+        }
+        if (el.readOnly || el.disabled) return;
+        if (!forceCommit && el.dataset.composing === "1") return;
+
+        const val = el.value;
+        if (!val) return;
+        const isProdNameField = PRODUCT_NAME_FIELD_IDS.has(el.id);
+        const formatted = isProdNameField ? formatSpecialProductName(val) : val.toUpperCase();
+
+        if (formatted !== val) {
+          const start = el.selectionStart;
+          const end = el.selectionEnd;
+          el.value = formatted;
+          if (typeof start === "number" && typeof end === "number") {
+            el.setSelectionRange(Math.min(start, formatted.length), Math.min(end, formatted.length));
+          }
+        }
+        if (el.tagName === "TEXTAREA") {
+          if (isProdNameField) fitProductNameHeight(el);
+          else autoExpandTextarea(el);
+        }
+      }
+
+      document.addEventListener("compositionstart", (e) => {
+        const target = e.target;
+        if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) {
+          target.dataset.composing = "1";
+        }
+      }, true);
+
+      document.addEventListener("compositionend", (e) => {
+        const target = e.target;
+        if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) {
+          target.dataset.composing = "0";
+          enforceGlobalCapsOnField(target, true);
+        }
+      }, true);
+
+      document.addEventListener("input", (e) => {
+        const target = e.target;
+        if (!target || (target.tagName !== "INPUT" && target.tagName !== "TEXTAREA")) return;
+        // Skip rewriting on trailing space while Android IME might still be composing,
+        // and immediately convert non-space characters to ALL CAPS; space commit happens seamlessly without cutting words
+        enforceGlobalCapsOnField(target, false);
+      }, true);
+
+      document.addEventListener("blur", (e) => {
+        const target = e.target;
+        if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) {
+          target.dataset.composing = "0";
+          enforceGlobalCapsOnField(target, true);
+        }
+      }, true);
 
       function buildCategoryPrefix(categoryName) {
         const words = String(categoryName || "")
@@ -5238,6 +5321,7 @@
         let dragState = null;
 
         floatingPlusBtn.addEventListener("pointerdown", (e) => {
+          if (isMultiTouchGestureActive || (e.pointerType === "touch" && !e.isPrimary)) return;
           e.preventDefault();
           e.stopPropagation();
           const rect = floatingPlusBtn.getBoundingClientRect();
@@ -6975,6 +7059,10 @@
         document.querySelectorAll(".nav-btn").forEach((btn) => {
           btn.classList.toggle("active", btn.getAttribute("data-tab") === tabName);
         });
+        const sortHeaderBtn = document.getElementById("productsSortTriggerBtn");
+        if (sortHeaderBtn) {
+          sortHeaderBtn.style.display = tabName === "products" ? "inline-flex" : "none";
+        }
         renderAll();
         requestAnimationFrame(syncStickyHeaderOffset);
       }
@@ -7192,9 +7280,29 @@
         }
       }
 
+      const PRODUCT_SORT_OPTIONS = [
+        { key: "ITEM_NO", label: "Item Number", desc: "Sort by Item No. (A–Z / 1–9)" },
+        { key: "STOCK_QTY", label: "Stock Quantity", desc: "Sort by Stock Qty (High to Low)" },
+        { key: "SALE_QTY", label: "Sale Number", desc: "Sort by Sale Qty (High to Low)" },
+        { key: "PRICE", label: "Price", desc: "Sort by Price (Low to High)" },
+        { key: "LOCATION", label: "Location", desc: "Sort by Location No. (1–9)" },
+        { key: "LAST_UPDATE", label: "Last Update", desc: "Recently updated products first" },
+        { key: "YOUR_PRODUCT", label: "Your Product", desc: "Sort by Product Name (A–Z)" }
+      ];
+
+      function getProductTimestampMs(item) {
+        if (!item) return 0;
+        if (typeof item.updatedAt === "number" && item.updatedAt > 0) return item.updatedAt;
+        if (typeof item.createdAt === "number" && item.createdAt > 0) return item.createdAt;
+        const idStr = String(item.id || "");
+        const m = idStr.match(/(\d{12,13})/);
+        if (m) return parseInt(m[1], 10) || 0;
+        return 0;
+      }
+
       function getFilteredProducts() {
         const q = searchQuery.trim().toLowerCase();
-        return state.products.filter((item) => {
+        const filtered = state.products.filter((item) => {
           const matchesCat = selectedCategory === "ALL" || item.category === selectedCategory;
           if (!matchesCat) return false;
           if (selectedCategory !== "ALL" && selectedCompany !== "ALL") {
@@ -7204,6 +7312,51 @@
           return `${item.itemNo || ""} ${item.name} ${item.category} ${item.company || ""} ${item.locationNo || ""} ${item.barcode || ""} ${item.price || ""}`
             .toLowerCase()
             .includes(q);
+        });
+
+        if (productSortBy === "DEFAULT") {
+          return filtered;
+        }
+
+        return [...filtered].sort((a, b) => {
+          if (productSortBy === "ITEM_NO") {
+            const codeA = String(a.itemNo || "").trim();
+            const codeB = String(b.itemNo || "").trim();
+            if (!codeA && codeB) return 1;
+            if (codeA && !codeB) return -1;
+            return codeA.localeCompare(codeB, undefined, { numeric: true, sensitivity: "base" });
+          }
+          if (productSortBy === "STOCK_QTY") {
+            const diff = (Number(b.stockQty) || 0) - (Number(a.stockQty) || 0);
+            if (diff !== 0) return diff;
+            return String(a.name || "").localeCompare(String(b.name || ""), undefined, { numeric: true, sensitivity: "base" });
+          }
+          if (productSortBy === "SALE_QTY") {
+            const diff = (Number(b.saleQty) || 0) - (Number(a.saleQty) || 0);
+            if (diff !== 0) return diff;
+            return String(a.name || "").localeCompare(String(b.name || ""), undefined, { numeric: true, sensitivity: "base" });
+          }
+          if (productSortBy === "PRICE") {
+            const diff = (Number(a.price) || 0) - (Number(b.price) || 0);
+            if (diff !== 0) return diff;
+            return String(a.name || "").localeCompare(String(b.name || ""), undefined, { numeric: true, sensitivity: "base" });
+          }
+          if (productSortBy === "LOCATION") {
+            const locA = String(a.locationNo || "").trim();
+            const locB = String(b.locationNo || "").trim();
+            if (!locA && locB) return 1;
+            if (locA && !locB) return -1;
+            const cmp = locA.localeCompare(locB, undefined, { numeric: true, sensitivity: "base" });
+            if (cmp !== 0) return cmp;
+            return String(a.name || "").localeCompare(String(b.name || ""), undefined, { numeric: true, sensitivity: "base" });
+          }
+          if (productSortBy === "LAST_UPDATE") {
+            return getProductTimestampMs(b) - getProductTimestampMs(a);
+          }
+          if (productSortBy === "YOUR_PRODUCT") {
+            return String(a.name || "").localeCompare(String(b.name || ""), undefined, { numeric: true, sensitivity: "base" });
+          }
+          return 0;
         });
       }
 
@@ -7786,9 +7939,9 @@
 
         createForm.addEventListener("submit", (ev) => {
           ev.preventDefault();
-          const name = newNameEl.value.trim();
+          const name = newNameEl.value.trim().toUpperCase();
           const mobile = containerEl.querySelector("#newCustMobileInput").value.trim();
-          const address = newAddrEl.value.trim();
+          const address = newAddrEl.value.trim().toUpperCase();
           if (!name || !mobile || !address) return;
 
           const existing = state.customers.find((c) => c.mobile === mobile);
@@ -8322,7 +8475,7 @@
       document.getElementById("rejectReasonForm").addEventListener("submit", (e) => {
         e.preventDefault();
         const reqId = document.getElementById("rejectTargetReqId").value;
-        const reasonText = document.getElementById("rejectReasonInput").value.trim();
+        const reasonText = document.getElementById("rejectReasonInput").value.trim().toUpperCase();
         if (!reasonText) {
           showToast("Please enter a reject reason");
           return;
@@ -10717,14 +10870,18 @@
 
       const ordCustNameEl = document.getElementById("orderCustNameInput");
       const ordProdNameEl = document.getElementById("orderProductNameInput");
-      ordCustNameEl.addEventListener("input", () => formatTitleCaseTyping(ordCustNameEl, false));
+      ordCustNameEl.addEventListener("input", () => formatTitleCaseTyping(ordCustNameEl, false, false));
+      ordCustNameEl.addEventListener("blur", () => formatTitleCaseTyping(ordCustNameEl, false, true));
       ordProdNameEl.addEventListener("input", () => {
-        applySpecialProductNameTyping(ordProdNameEl, true);
+        fitProductNameHeight(ordProdNameEl);
+      });
+      ordProdNameEl.addEventListener("blur", () => {
+        applySpecialProductNameTyping(ordProdNameEl, true, true);
       });
 
       document.getElementById("addDailyOrderForm").addEventListener("submit", async (e) => {
         e.preventDefault();
-        const customerName = ordCustNameEl.value.trim();
+        const customerName = ordCustNameEl.value.trim().toUpperCase();
         const mobile = document.getElementById("orderCustMobileInput").value.trim();
         const productName = formatSpecialProductName(ordProdNameEl.value.trim());
         const qty = Math.max(1, parseInt(document.getElementById("orderQtyInput").value, 10) || 1);
@@ -10921,7 +11078,7 @@
       companyModal.addEventListener("click", (e) => {
         if (e.target === companyModal) closeCompanyModal();
       });
-      companyNameInput.addEventListener("input", () => formatTitleCaseTyping(companyNameInput, false));
+      companyNameInput.addEventListener("blur", () => formatTitleCaseTyping(companyNameInput, false, true));
 
       document.getElementById("companyForm").addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -10930,7 +11087,7 @@
         if (!catObj) return;
 
         const origName = document.getElementById("editCompanyOriginalName").value;
-        const newCompName = companyNameInput.value.trim();
+        const newCompName = companyNameInput.value.trim().toUpperCase();
         if (!newCompName) return;
 
         if (!Array.isArray(catObj.companies)) catObj.companies = [];
@@ -11420,9 +11577,9 @@
 
       const debouncedCustomerLiveMatches = debounceFn(renderCustomerLiveMatches, 180);
       saleCustNameInput.addEventListener("input", () => {
-        formatTitleCaseTyping(saleCustNameInput, false);
         debouncedCustomerLiveMatches();
       });
+      saleCustNameInput.addEventListener("blur", () => formatTitleCaseTyping(saleCustNameInput, false, true));
 
       saleCustLiveMatchList.addEventListener("click", (e) => {
         const btn = e.target.closest("[data-select-saved-cust]");
@@ -11441,7 +11598,8 @@
         showToast(`Customer selected: ${found.name}`);
       });
 
-      saleCustAddressInput.addEventListener("input", () => formatTitleCaseTyping(saleCustAddressInput, false));
+      saleCustAddressInput.addEventListener("input", () => autoExpandTextarea(saleCustAddressInput));
+      saleCustAddressInput.addEventListener("blur", () => formatTitleCaseTyping(saleCustAddressInput, false, true));
 
       saleCheckoutForm.addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -11449,9 +11607,9 @@
           showToast("Cart is empty");
           return;
         }
-        const custName = saleCustNameInput.value.trim();
+        const custName = saleCustNameInput.value.trim().toUpperCase();
         const custMobile = saleCustMobileInput.value.trim();
-        const custAddress = saleCustAddressInput.value.trim();
+        const custAddress = saleCustAddressInput.value.trim().toUpperCase();
         if (!custName || !custMobile || !custAddress) {
           showToast("Please enter customer details");
           return;
@@ -11760,7 +11918,7 @@
         if (e.target === categoryDetailModal) closeCategoryDetailsModal();
       });
 
-      editCategoryNameInput.addEventListener("input", () => formatTitleCaseTyping(editCategoryNameInput, false));
+      editCategoryNameInput.addEventListener("blur", () => formatTitleCaseTyping(editCategoryNameInput, false, true));
       document.getElementById("editCatWarrantyYesBtn").addEventListener("click", () => setEditCategoryWarrantyToggle(true));
       document.getElementById("editCatWarrantyNoBtn").addEventListener("click", () => setEditCategoryWarrantyToggle(false));
       document.getElementById("editCatLocationOnBtn").addEventListener("click", () => setEditCategoryLocationToggle(true));
@@ -11771,7 +11929,7 @@
       document.getElementById("editCategoryForm").addEventListener("submit", async (e) => {
         e.preventDefault();
         const oldName = document.getElementById("editCategoryOriginalName").value;
-        const newName = editCategoryNameInput.value.trim();
+        const newName = editCategoryNameInput.value.trim().toUpperCase();
         if (!newName) return;
 
         const duplicate = state.categories.some(
@@ -11858,21 +12016,24 @@
 
       prodNameInput.addEventListener("compositionend", () => {
         isComposingProductInput = false;
-        applySpecialProductNameTyping(prodNameInput, true);
+        fitProductNameHeight(prodNameInput);
         updateProductLiveMatches();
       });
 
       const debouncedProductLiveMatches = debounceFn(updateProductLiveMatches, 180);
       prodNameInput.addEventListener("input", () => {
-        applySpecialProductNameTyping(prodNameInput, true);
+        fitProductNameHeight(prodNameInput);
         debouncedProductLiveMatches();
+      });
+      prodNameInput.addEventListener("blur", () => {
+        applySpecialProductNameTyping(prodNameInput, true, true);
       });
 
       const debouncedCategoryLiveMatches = debounceFn(updateCategoryLiveMatches, 180);
       newCategoryInput.addEventListener("input", () => {
-        formatTitleCaseTyping(newCategoryInput, false);
         debouncedCategoryLiveMatches();
       });
+      newCategoryInput.addEventListener("blur", () => formatTitleCaseTyping(newCategoryInput, false, true));
 
       let activeQuickStockProductId = null;
 
@@ -11980,10 +12141,64 @@
         }
       });
 
-      // Product Card Gesture
+      // Multi-Touch / 3-Finger Screenshot Guard (Cancels any active card swipe/long-press immediately)
+      let isMultiTouchGestureActive = false;
+      function cancelAllActiveCardGestures() {
+        if (activeCardGesture) {
+          clearTimeout(activeCardGesture.timer);
+          activeCardGesture.card.classList.remove("swiping");
+          activeCardGesture.card.style.transform = "";
+          activeCardGesture = null;
+        }
+        if (typeof cancelDsrLongPress === "function") cancelDsrLongPress();
+        if (typeof cancelOrderLongPress === "function") cancelOrderLongPress();
+        if (typeof cancelCompanyLongPress === "function") cancelCompanyLongPress();
+        if (typeof cancelCatLongPress === "function") cancelCatLongPress();
+      }
+
+      document.addEventListener("touchstart", (e) => {
+        if (e.touches && e.touches.length >= 2) {
+          isMultiTouchGestureActive = true;
+          cancelAllActiveCardGestures();
+        }
+      }, { passive: true });
+
+      document.addEventListener("touchmove", (e) => {
+        if (e.touches && e.touches.length >= 2) {
+          isMultiTouchGestureActive = true;
+          cancelAllActiveCardGestures();
+        }
+      }, { passive: true });
+
+      document.addEventListener("touchend", (e) => {
+        if (!e.touches || e.touches.length === 0) {
+          setTimeout(() => {
+            isMultiTouchGestureActive = false;
+          }, 120);
+        }
+      }, { passive: true });
+
+      document.addEventListener("touchcancel", () => {
+        cancelAllActiveCardGestures();
+        setTimeout(() => {
+          isMultiTouchGestureActive = false;
+        }, 120);
+      }, { passive: true });
+
+      // Product Card Gesture (Single Primary Pointer Only)
       let activeCardGesture = null;
 
       document.addEventListener("pointerdown", (e) => {
+        if (isMultiTouchGestureActive || (e.pointerType === "touch" && !e.isPrimary)) {
+          cancelAllActiveCardGestures();
+          return;
+        }
+        if (activeCardGesture) {
+          // Second finger touched down -> abort gesture immediately (3-finger screenshot safe)
+          cancelAllActiveCardGestures();
+          isMultiTouchGestureActive = true;
+          return;
+        }
         const card = e.target.closest(".product-card");
         if (!card) return;
         const pid = card.getAttribute("data-product-id");
@@ -11993,9 +12208,8 @@
         const toggleNamePid = nameToggleEl ? nameToggleEl.getAttribute("data-toggle-name-id") : null;
 
         const timer = setTimeout(() => {
-          if (activeCardGesture) {
-            activeCardGesture.longPressTriggered = true;
-          }
+          if (isMultiTouchGestureActive || !activeCardGesture) return;
+          activeCardGesture.longPressTriggered = true;
           card.style.transform = "";
           card.classList.remove("swiping");
           activeCardGesture = null;
@@ -12003,6 +12217,7 @@
         }, 1000);
 
         activeCardGesture = {
+          pointerId: e.pointerId,
           card,
           pid,
           toggleNamePid,
@@ -12019,34 +12234,39 @@
 
       document.addEventListener("pointermove", (e) => {
         if (!activeCardGesture) return;
+        if (isMultiTouchGestureActive || e.pointerId !== activeCardGesture.pointerId) {
+          cancelAllActiveCardGestures();
+          return;
+        }
         const g = activeCardGesture;
         const dx = e.clientX - g.startX;
         const dy = e.clientY - g.startY;
 
-        if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+        if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
           g.moved = true;
           clearTimeout(g.timer);
         }
 
-        if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) {
+        if (Math.abs(dx) > 14 && Math.abs(dx) > Math.abs(dy) * 1.35) {
           g.dx = Math.max(-130, Math.min(dx, 130));
           g.swiped = true;
           g.card.style.transform = `translateX(${g.dx}px)`;
         }
       });
 
-      function finishCardGesture() {
+      function finishCardGesture(e) {
         if (!activeCardGesture) return;
         const g = activeCardGesture;
         clearTimeout(g.timer);
         g.card.classList.remove("swiping");
         g.card.style.transform = "";
 
-        if (!g.longPressTriggered) {
+        const cancelledOrMulti = isMultiTouchGestureActive || (e && e.type === "pointercancel") || (e && e.pointerId !== g.pointerId);
+        if (!cancelledOrMulti && !g.longPressTriggered) {
           if (g.swiped) {
-            if (g.dx >= 65) {
+            if (g.dx >= 75) {
               selectProductForSaleChoice(g.pid);
-            } else if (g.dx <= -65) {
+            } else if (g.dx <= -75) {
               openProductDetails(g.pid);
             }
           } else if (!g.moved && g.toggleNamePid) {
@@ -12084,6 +12304,7 @@
           closeProductDetails();
           closeCategoryPicker();
           closeCompanyPicker();
+          closeProductsSortModal();
           closeSaleModal();
           closeSaleProductListModal();
           closeA4BillModal();
@@ -12216,6 +12437,68 @@
         closeCategoryPicker();
       });
 
+      const productsSortTriggerBtn = document.getElementById("productsSortTriggerBtn");
+      const productsSortModal = document.getElementById("productsSortModal");
+      const productsSortOptionsList = document.getElementById("productsSortOptionsList");
+      const productsSortActiveDot = document.getElementById("productsSortActiveDot");
+
+      function renderProductsSortOptionsList() {
+        if (!productsSortOptionsList) return;
+        productsSortOptionsList.innerHTML = PRODUCT_SORT_OPTIONS.map((opt) => {
+          const isSelected = productSortBy === opt.key;
+          return `
+            <button type="button" class="picker-option ${isSelected ? "selected" : ""}" data-select-product-sort="${escapeHtml(opt.key)}">
+              <span class="picker-opt-left" style="flex-direction:column;align-items:flex-start;gap:2px;">
+                <span class="picker-opt-name word-wrap-clean">${escapeHtml(opt.label)}</span>
+                <span class="live-match-sub word-wrap-clean">${escapeHtml(opt.desc)}</span>
+              </span>
+              ${isSelected ? `<span class="item-no-pill no-wrap">Selected</span>` : `<span class="picker-opt-count no-wrap">Apply</span>`}
+            </button>
+          `;
+        }).join("");
+      }
+
+      function openProductsSortModal() {
+        renderProductsSortOptionsList();
+        if (productsSortModal) productsSortModal.classList.add("open");
+        syncPlusButtonModalState();
+      }
+
+      function closeProductsSortModal() {
+        if (productsSortModal) productsSortModal.classList.remove("open");
+        syncPlusButtonModalState();
+      }
+
+      if (productsSortTriggerBtn) {
+        productsSortTriggerBtn.addEventListener("click", openProductsSortModal);
+      }
+      const closeSortBtn = document.getElementById("closeProductsSortModalBtn");
+      if (closeSortBtn) {
+        closeSortBtn.addEventListener("click", closeProductsSortModal);
+      }
+      if (productsSortModal) {
+        productsSortModal.addEventListener("click", (e) => {
+          if (e.target === productsSortModal) closeProductsSortModal();
+        });
+      }
+      if (productsSortOptionsList) {
+        productsSortOptionsList.addEventListener("click", (e) => {
+          const optBtn = e.target.closest("[data-select-product-sort]");
+          if (!optBtn) return;
+          const chosenKey = optBtn.getAttribute("data-select-product-sort") || "DEFAULT";
+          productSortBy = chosenKey;
+          if (productsSortActiveDot) {
+            productsSortActiveDot.style.display = productSortBy !== "DEFAULT" ? "block" : "none";
+          }
+          const foundOpt = PRODUCT_SORT_OPTIONS.find((o) => o.key === chosenKey);
+          renderAllProducts();
+          closeProductsSortModal();
+          if (foundOpt) {
+            showToast(`Sorted by: ${foundOpt.label}`);
+          }
+        });
+      }
+
       companySelectorBtn.addEventListener("click", openCompanyPicker);
       document.getElementById("closeCompPickerBtn").addEventListener("click", closeCompanyPicker);
       companyPickerModal.addEventListener("click", (e) => {
@@ -12237,7 +12520,7 @@
 
       document.getElementById("addCategoryForm").addEventListener("submit", async (e) => {
         e.preventDefault();
-        const val = newCategoryInput.value.trim();
+        const val = newCategoryInput.value.trim().toUpperCase();
         if (!val) return;
         if (state.categories.some((c) => c.name.toLowerCase() === val.toLowerCase())) {
           showToast("Category already exists");
@@ -12738,7 +13021,7 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
         tcForm.addEventListener("submit", async (e) => {
           e.preventDefault();
           const inp = document.getElementById("newTermConditionInput");
-          const textVal = inp ? inp.value.trim() : "";
+          const textVal = inp ? inp.value.trim().toUpperCase() : "";
           if (!textVal) return;
           const okTcAdd = await requestConfirmation("Save this term & condition?", "Confirm Condition");
           if (!okTcAdd) return;
