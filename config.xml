@@ -39,19 +39,13 @@
         <preference name="StatusBarStyle" value="default" />
 
         <config-file target="AndroidManifest.xml" parent="/manifest">
-            <!-- Storage & File Access for PDF Creation & Viewing -->
-            <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
-            <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
-            <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-
             <!-- Camera & QR/Barcode Scanner -->
             <uses-permission android:name="android.permission.CAMERA" />
             <uses-feature android:name="android.hardware.camera" android:required="false" />
             <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 
-            <!-- Bluetooth Printer Permissions -->
-            <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
-            <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+            <!-- Android 13+ Media Permission (Non-conflicting with File/Bluetooth plugins) -->
+            <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
             <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
             <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
             <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
