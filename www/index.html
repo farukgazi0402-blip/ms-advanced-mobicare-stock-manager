@@ -5187,7 +5187,7 @@
         }, 2400);
       }
 
-      // Build real downloadable/openable multi-page A4 PDF from any HTML report table/layout (works in Android APK + WebView + Browser)
+      // Build real downloadable/openable multi-page A4 PDF from any HTML report table/layout (works 100% in Android APK WebView + Browser)
       function buildSimplePdfFromJpegPages(jpegPages) {
         const enc = new TextEncoder();
         const chunks = [];
@@ -5252,65 +5252,282 @@
         return new Blob(chunks, { type: "application/pdf" });
       }
 
+      function renderHtmlReportDirectlyToA4Canvases(reportHtml) {
+        const host = document.createElement("div");
+        host.innerHTML = reportHtml;
+
+        // Extract structured header, filter strip, table headers/rows, and footer totals directly from the report DOM
+        const h2El = host.querySelector("h2");
+        const shopTitle = h2El ? h2El.textContent.trim() : "MS ADVANCED MOBICARE";
+        const allDivs = Array.from(host.querySelectorAll("div"));
+        const addrDiv = allDivs.find((d) => d.textContent.includes("KharddaSinga") && d.children.length === 0);
+        const shopAddr = addrDiv ? addrDiv.textContent.trim() : "KharddaSinga Badher Mukh Bazar, Near Swarupnagar Bridge, North 24 Parganas, WB · Ph: 9123360970 / 8013011282";
+
+        const titleBadgeDiv = allDivs.find((d) => /REPORT/i.test(d.textContent) && d.children.length === 0);
+        const reportTitle = titleBadgeDiv ? titleBadgeDiv.textContent.trim() : "A4 REPORT";
+
+        const printedDiv = allDivs.find((d) => d.textContent.includes("Printed:") && d.children.length === 0);
+        const printedLine = printedDiv ? printedDiv.textContent.trim() : `Printed: ${formatDisplayDate(getTodayIsoDate())}`;
+
+        const filterBox = allDivs.find((d) => (d.textContent.includes("Filter:") || d.textContent.includes("Total Bills:") || d.textContent.includes("Period:") || d.textContent.includes("Stock Filter")) && d.querySelectorAll("table").length === 0 && d.textContent.length < 260);
+        const filterText = filterBox ? filterBox.textContent.replace(/\s+/g, " ").trim() : "";
+
+        const tableEl = host.querySelector("table");
+        const headers = tableEl
+          ? Array.from(tableEl.querySelectorAll("thead th")).map((th) => th.textContent.replace(/\s+/g, " ").trim())
+          : [];
+        const bodyRows = tableEl
+          ? Array.from(tableEl.querySelectorAll("tbody tr")).map((tr) =>
+              Array.from(tr.querySelectorAll("td")).map((td) => {
+                const lines = td.innerHTML
+                  .replace(/<br\s*\/?>/gi, "\n")
+                  .replace(/<[^>]+>/g, " ")
+                  .split("\n")
+                  .map((s) => s.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, " ").trim())
+                  .filter(Boolean);
+                return lines.length > 0 ? lines : [td.textContent.replace(/\s+/g, " ").trim()];
+              })
+            )
+          : [];
+
+        const lastDiv = allDivs.length > 0 ? allDivs[allDivs.length - 1] : null;
+        const footerItems = lastDiv && lastDiv.querySelectorAll("span").length > 0
+          ? Array.from(lastDiv.querySelectorAll("span")).map((sp) => sp.textContent.replace(/\s+/g, " ").trim())
+          : [];
+
+        // A4 Portrait at 150 DPI: 1240 x 1754 px
+        const pageW = 1240;
+        const pageH = 1754;
+        const margin = 56;
+        const innerW = pageW - margin * 2;
+        const pages = [];
+
+        const createNewPageCanvas = (pageNum) => {
+          const c = document.createElement("canvas");
+          c.width = pageW;
+          c.height = pageH;
+          const ctx = c.getContext("2d");
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, pageW, pageH);
+
+          // Top Header
+          ctx.fillStyle = "#0f172a";
+          ctx.font = "900 28px sans-serif";
+          ctx.textAlign = "left";
+          ctx.fillText(shopTitle, margin, margin + 28);
+
+          ctx.textAlign = "right";
+          ctx.font = "900 22px sans-serif";
+          ctx.fillStyle = "#1e1b4b";
+          ctx.fillText(reportTitle, pageW - margin, margin + 26);
+
+          ctx.font = "600 15px sans-serif";
+          ctx.fillStyle = "#475569";
+          ctx.fillText(`${printedLine}  |  Page ${pageNum}`, pageW - margin, margin + 50);
+
+          ctx.textAlign = "left";
+          ctx.font = "600 15px sans-serif";
+          ctx.fillStyle = "#475569";
+          const addrWrapped = wrapCanvasLines(ctx, shopAddr, innerW - 260);
+          let ay = margin + 52;
+          addrWrapped.forEach((ln) => {
+            ctx.fillText(ln, margin, ay);
+            ay += 20;
+          });
+
+          const divY = Math.max(ay + 8, margin + 74);
+          ctx.strokeStyle = "#0f172a";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(margin, divY);
+          ctx.lineTo(pageW - margin, divY);
+          ctx.stroke();
+
+          let curY = divY + 16;
+          if (filterText && pageNum === 1) {
+            ctx.fillStyle = "#eef2ff";
+            ctx.fillRect(margin, curY, innerW, 38);
+            ctx.strokeStyle = "#c7d2fe";
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(margin, curY, innerW, 38);
+            ctx.fillStyle = "#1e1b4b";
+            ctx.font = "700 15px sans-serif";
+            ctx.fillText(filterText.slice(0, 115), margin + 12, curY + 24);
+            curY += 50;
+          }
+          return { canvas: c, ctx, y: curY };
+        };
+
+        // Compute proportional column widths
+        const colCount = Math.max(1, headers.length);
+        const colWidths = headers.map((h, idx) => {
+          const low = h.toLowerCase();
+          if (low === "#" || idx === 0) return Math.round(innerW * 0.06);
+          if (low.includes("product") || low.includes("item")) return Math.round(innerW * 0.30);
+          if (low.includes("bill") || low.includes("customer")) return Math.round(innerW * 0.21);
+          return Math.floor((innerW * 0.43) / Math.max(1, colCount - 3));
+        });
+        const sumW = colWidths.reduce((s, w) => s + w, 0);
+        if (colWidths.length > 1) {
+          colWidths[1] += innerW - sumW;
+        }
+
+        const drawTableHeader = (ctx, y) => {
+          const hHeight = 42;
+          ctx.fillStyle = "#f1f5f9";
+          ctx.fillRect(margin, y, innerW, hHeight);
+          ctx.strokeStyle = "#94a3b8";
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(margin, y, innerW, hHeight);
+
+          let x = margin;
+          ctx.fillStyle = "#0f172a";
+          ctx.font = "800 15px sans-serif";
+          headers.forEach((hText, idx) => {
+            if (idx > 0) {
+              ctx.beginPath();
+              ctx.moveTo(x, y);
+              ctx.lineTo(x, y + hHeight);
+              ctx.stroke();
+            }
+            const cw = colWidths[idx] || 100;
+            const isCenter = idx === 0 || /qty/i.test(hText);
+            const isRight = /rate|price|amount|total|paid|due|value|disc/i.test(hText) && !/product|item|bill|customer/i.test(hText);
+            if (isCenter) {
+              ctx.textAlign = "center";
+              ctx.fillText(hText, x + cw / 2, y + 26);
+            } else if (isRight) {
+              ctx.textAlign = "right";
+              ctx.fillText(hText, x + cw - 8, y + 26);
+            } else {
+              ctx.textAlign = "left";
+              ctx.fillText(hText, x + 8, y + 26);
+            }
+            x += cw;
+          });
+          ctx.textAlign = "left";
+          return y + hHeight;
+        };
+
+        let pageNum = 1;
+        let curPage = createNewPageCanvas(pageNum);
+        if (headers.length > 0) {
+          curPage.y = drawTableHeader(curPage.ctx, curPage.y);
+        }
+
+        const maxBottomY = pageH - margin - 75;
+
+        bodyRows.forEach((rowCells, rIdx) => {
+          const { ctx } = curPage;
+          ctx.font = "600 14.5px sans-serif";
+          let maxLines = 1;
+          const wrappedCells = rowCells.map((cellLines, cIdx) => {
+            const cw = (colWidths[cIdx] || 120) - 16;
+            const outLines = [];
+            cellLines.forEach((rawLine) => {
+              wrapCanvasLines(ctx, rawLine, Math.max(30, cw)).forEach((wl) => outLines.push(wl));
+            });
+            if (outLines.length > maxLines) maxLines = outLines.length;
+            return outLines;
+          });
+
+          const rowH = Math.max(38, maxLines * 20 + 14);
+          if (curPage.y + rowH > maxBottomY) {
+            pages.push(curPage.canvas);
+            pageNum += 1;
+            curPage = createNewPageCanvas(pageNum);
+            if (headers.length > 0) {
+              curPage.y = drawTableHeader(curPage.ctx, curPage.y);
+            }
+          }
+
+          const pCtx = curPage.ctx;
+          const y = curPage.y;
+          if (rIdx % 2 === 1) {
+            pCtx.fillStyle = "#f8fafc";
+            pCtx.fillRect(margin, y, innerW, rowH);
+          }
+          pCtx.strokeStyle = "#cbd5e1";
+          pCtx.lineWidth = 1.2;
+          pCtx.strokeRect(margin, y, innerW, rowH);
+
+          let x = margin;
+          wrappedCells.forEach((cellLines, cIdx) => {
+            const cw = colWidths[cIdx] || 100;
+            if (cIdx > 0) {
+              pCtx.beginPath();
+              pCtx.moveTo(x, y);
+              pCtx.lineTo(x, y + rowH);
+              pCtx.stroke();
+            }
+            const hLabel = headers[cIdx] || "";
+            const isCenter = cIdx === 0 || /qty/i.test(hLabel);
+            const isRight = /rate|price|amount|total|paid|due|value|disc/i.test(hLabel) && !/product|item|bill|customer/i.test(hLabel);
+
+            let ly = y + 22;
+            cellLines.forEach((ln, lIdx) => {
+              pCtx.font = lIdx === 0 ? "700 14.5px sans-serif" : "600 13px sans-serif";
+              pCtx.fillStyle = /due:/i.test(ln) ? "#e11d48" : (/paid/i.test(ln) ? "#059669" : "#0f172a");
+              if (isCenter) {
+                pCtx.textAlign = "center";
+                pCtx.fillText(ln, x + cw / 2, ly);
+              } else if (isRight) {
+                pCtx.textAlign = "right";
+                pCtx.fillText(ln, x + cw - 8, ly);
+              } else {
+                pCtx.textAlign = "left";
+                pCtx.fillText(ln, x + 8, ly);
+              }
+              ly += 19;
+            });
+            x += cw;
+          });
+          pCtx.textAlign = "left";
+          curPage.y += rowH;
+        });
+
+        // Draw Footer Summary Bar
+        if (footerItems.length > 0) {
+          if (curPage.y + 60 > pageH - margin) {
+            pages.push(curPage.canvas);
+            pageNum += 1;
+            curPage = createNewPageCanvas(pageNum);
+          }
+          const fy = curPage.y + 14;
+          const fCtx = curPage.ctx;
+          fCtx.strokeStyle = "#0f172a";
+          fCtx.lineWidth = 2.5;
+          fCtx.beginPath();
+          fCtx.moveTo(margin, fy);
+          fCtx.lineTo(pageW - margin, fy);
+          fCtx.stroke();
+
+          fCtx.font = "900 17px sans-serif";
+          fCtx.textAlign = "right";
+          let fx = pageW - margin;
+          [...footerItems].reverse().forEach((txt) => {
+            fCtx.fillStyle = /due/i.test(txt) ? "#e11d48" : (/paid/i.test(txt) ? "#059669" : "#0f172a");
+            fCtx.fillText(txt, fx, fy + 28);
+            fx -= fCtx.measureText(txt).width + 28;
+          });
+          fCtx.textAlign = "left";
+        }
+
+        pages.push(curPage.canvas);
+        return pages.map((cv) => {
+          const dataUrl = cv.toDataURL("image/jpeg", 0.92);
+          const b64 = dataUrl.split(",")[1] || "";
+          const binStr = atob(b64);
+          const bytes = new Uint8Array(binStr.length);
+          for (let i = 0; i < binStr.length; i++) bytes[i] = binStr.charCodeAt(i);
+          return { width: cv.width, height: cv.height, bytes };
+        });
+      }
+
       async function exportReportAsA4Pdf(fileName, reportHtml, bodyPrintClass, containerId) {
         showToast("Generating A4 PDF Report...");
         try {
-          const sandboxHost = document.createElement("div");
-          sandboxHost.style.cssText = "position:fixed;left:-10000px;top:0;width:794px;background:#ffffff;color:#0f172a;padding:24px;box-sizing:border-box;z-index:-1;";
-          sandboxHost.innerHTML = reportHtml;
-          document.body.appendChild(sandboxHost);
-
-          await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-          const contentW = 794;
-          const contentH = Math.max(400, Math.ceil(sandboxHost.scrollHeight));
-          const serializedHtml = new XMLSerializer().serializeToString(sandboxHost);
-          document.body.removeChild(sandboxHost);
-
-          const svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" width="${contentW}" height="${contentH}"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" style="width:${contentW}px;background:#ffffff;font-family:sans-serif;">${serializedHtml}</div></foreignObject></svg>`;
-          const svgBlob = new Blob([svgMarkup], { type: "image/svg+xml;charset=utf-8" });
-          const svgUrl = URL.createObjectURL(svgBlob);
-
-          const img = new Image();
-          await new Promise((resolve, reject) => {
-            img.onload = resolve;
-            img.onerror = reject;
-            img.src = svgUrl;
-          });
-
-          const scale = 2;
-          const pageCanvasH = Math.round((contentW * (841.89 / 595.28)) * scale);
-          const totalScaledH = contentH * scale;
-          const totalPages = Math.max(1, Math.ceil(totalScaledH / pageCanvasH));
-          const jpegPages = [];
-
-          for (let p = 0; p < totalPages; p++) {
-            const sliceH = Math.min(pageCanvasH, totalScaledH - p * pageCanvasH);
-            const pageCanvas = document.createElement("canvas");
-            pageCanvas.width = contentW * scale;
-            pageCanvas.height = pageCanvasH;
-            const pCtx = pageCanvas.getContext("2d");
-            pCtx.fillStyle = "#ffffff";
-            pCtx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
-            pCtx.drawImage(
-              img,
-              0,
-              (p * pageCanvasH) / scale,
-              contentW,
-              sliceH / scale,
-              0,
-              0,
-              contentW * scale,
-              sliceH
-            );
-            const dataUrl = pageCanvas.toDataURL("image/jpeg", 0.92);
-            const b64 = dataUrl.split(",")[1] || "";
-            const binStr = atob(b64);
-            const bytes = new Uint8Array(binStr.length);
-            for (let i = 0; i < binStr.length; i++) bytes[i] = binStr.charCodeAt(i);
-            jpegPages.push({ width: pageCanvas.width, height: pageCanvas.height, bytes });
-          }
-
-          URL.revokeObjectURL(svgUrl);
+          const jpegPages = renderHtmlReportDirectlyToA4Canvases(reportHtml);
           const pdfBlob = buildSimplePdfFromJpegPages(jpegPages);
 
           if (window.MSAppNativeBridge && typeof window.MSAppNativeBridge.saveAndOpenPdfFile === "function") {
@@ -5324,7 +5541,7 @@
             a.click();
             document.body.removeChild(a);
             setTimeout(() => URL.revokeObjectURL(url), 4000);
-            showToast(`PDF generated: ${fileName}`);
+            showToast(`PDF ready: ${fileName}`);
           }
           return;
         } catch (pdfErr) {
@@ -7086,8 +7303,9 @@
 
       function openA4BillModal(billRecord) {
         currentPreviewBillRecord = billRecord;
-        const qrPayload = `DATE:${billRecord.dateDisplay}|BILL:${billRecord.billNo}`;
-        const qrSvg = renderQrSvg(qrPayload, 70);
+        const plainBillForQr = stripBillPrefixOnly(billRecord.billNo || "");
+        const qrPayload = `BILL:${plainBillForQr}|DATE:${billRecord.dateDisplay || ""}`;
+        const qrSvg = renderQrSvg(qrPayload, 74);
         const totalAmount =
           billRecord.totalAmount !== undefined
             ? Number(billRecord.totalAmount) || 0
@@ -11744,6 +11962,7 @@
         const qrPayload = buildPaymentQrPayload(billRecord);
         const qrSvgHtml = renderQrSvg(qrPayload, 76);
         const tcList = Array.isArray(state.termsAndConditions) ? state.termsAndConditions : [];
+        const hyphenDivider = `<div style="font-size:9px;line-height:1;letter-spacing:-0.5px;overflow:hidden;white-space:nowrap;margin:3px 0;">----------------------------------------</div>`;
 
         const itemRowsHtml = itemsArr
           .map((it) => {
@@ -11751,68 +11970,73 @@
             const rate = Math.round(Number(it.unitPrice) || 0);
             const amt = rate * qty;
             return `
-              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:2px;padding:3px 0;border-bottom:1px dotted #94a3b8;font-size:9.5px;line-height:1.25;">
-                <span style="flex:1.5;min-width:0;font-weight:800;word-break:break-word;">${escapeHtml(it.name || "")}</span>
-                <span style="flex:0.5;text-align:center;font-weight:700;white-space:nowrap;">${qty}</span>
-                <span style="flex:0.8;text-align:right;font-weight:700;white-space:nowrap;">${rate}</span>
-                <span style="flex:0.9;text-align:right;font-weight:900;white-space:nowrap;">${amt}</span>
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:2px;padding:2px 0;font-size:9.5px;line-height:1.25;font-weight:400;">
+                <span style="flex:1.45;min-width:0;text-align:left;word-break:break-word;">${escapeHtml(it.name || "")}</span>
+                <span style="flex:0.55;text-align:center;white-space:nowrap;">${qty}</span>
+                <span style="flex:0.85;text-align:center;white-space:nowrap;">${rate}</span>
+                <span style="flex:0.95;text-align:center;white-space:nowrap;">${amt}</span>
               </div>
             `;
           })
           .join("");
 
         const tcHtml = tcList.length > 0
-          ? `<div style="border-top:1px dashed #000;margin-top:5px;padding-top:4px;font-size:8.5px;line-height:1.35;">
-               <div style="font-weight:900;margin-bottom:2px;">Terms &amp; Conditions:</div>
+          ? `<div style="margin-top:5px;padding-top:4px;font-size:8.5px;line-height:1.35;">
+               <div style="font-weight:700;margin-bottom:2px;">Terms &amp; Conditions:</div>
                ${tcList.map((t, idx) => `<div>${idx + 1}. ${escapeHtml(t)}</div>`).join("")}
              </div>`
           : "";
 
         return `
           <div class="thermal-2in-sheet" style="width:100%;max-width:100%;padding:4px 2px;">
-            <div style="text-align:center;padding-bottom:4px;">
-              <div style="font-size:15px;font-weight:900;letter-spacing:-0.02em;line-height:1.15;width:100%;">MS ADVANCED MOBICARE</div>
-              <div style="font-size:9px;font-weight:700;margin-top:2px;white-space:nowrap;">KharddaSinga, Swarupnagar</div>
-              <div style="font-size:9px;font-weight:700;white-space:nowrap;">North 24 Parganas, 743286</div>
-              <div style="font-size:9px;font-weight:800;white-space:nowrap;">9123360970 / 8013011282</div>
+            <div style="text-align:center;padding-bottom:2px;">
+              <div style="font-size:13.2px;font-weight:900;letter-spacing:-0.03em;line-height:1.15;white-space:nowrap;">MS ADVANCED MOBICARE</div>
+              <div style="font-size:9px;font-weight:600;margin-top:2px;white-space:nowrap;">KharddaSinga, Swarupnagar</div>
+              <div style="font-size:9px;font-weight:600;white-space:nowrap;">North 24 Parganas, 743286</div>
+              <div style="font-size:9px;font-weight:700;white-space:nowrap;">Ph- 9123360970 / 8013011282</div>
             </div>
-            <div style="border-top:1px dashed #000;border-bottom:1px dashed #000;padding:4px 0;font-size:9.5px;line-height:1.35;">
-              <div><strong>Bill:</strong> ${escapeHtml(plainBillNo)}</div>
-              <div><strong>Date:</strong> ${escapeHtml(dateText)}</div>
-              <div><strong>Time:</strong> ${escapeHtml(timeText)}</div>
-              <div style="word-break:break-word;"><strong>${escapeHtml(billRecord.customerName || "")}</strong> (${escapeHtml(billRecord.mobile || "")})</div>
+            ${hyphenDivider}
+            <div style="padding:2px 0;font-size:9.5px;line-height:1.35;">
+              <div>Bill: ${escapeHtml(plainBillNo)}</div>
+              <div>Date: ${escapeHtml(dateText)}</div>
+              <div>Time: ${escapeHtml(timeText)}</div>
+              <div style="word-break:break-word;">Cust: ${escapeHtml(billRecord.customerName || "")} (${escapeHtml(billRecord.mobile || "")})</div>
             </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:2px;padding:4px 0;border-bottom:1px solid #000;font-size:9.5px;font-weight:900;">
-              <span style="flex:1.5;min-width:0;">Item</span>
-              <span style="flex:0.5;text-align:center;white-space:nowrap;">Qty</span>
-              <span style="flex:0.8;text-align:right;white-space:nowrap;">Rate</span>
-              <span style="flex:0.9;text-align:right;white-space:nowrap;">Amt</span>
+            ${hyphenDivider}
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:2px;padding:2px 0;font-size:9.5px;font-weight:400;">
+              <span style="flex:1.45;min-width:0;text-align:left;">Item</span>
+              <span style="flex:0.55;text-align:center;white-space:nowrap;">Qty</span>
+              <span style="flex:0.85;text-align:center;white-space:nowrap;">Rate</span>
+              <span style="flex:0.95;text-align:center;white-space:nowrap;">Amt</span>
             </div>
             <div>${itemRowsHtml}</div>
-            <div style="padding:4px 0;font-size:9.5px;display:flex;flex-direction:column;gap:2px;">
-              <div style="display:flex;justify-content:space-between;font-weight:800;">
+            ${hyphenDivider}
+            <div style="padding:2px 0;font-size:9.5px;display:flex;flex-direction:column;gap:2px;">
+              <div style="display:flex;justify-content:space-between;">
                 <span>Total Items: ${totalItemsCount}</span>
                 <span>Total Qty: ${totalQtyCount}</span>
               </div>
-              <div style="display:flex;justify-content:space-between;font-weight:900;font-size:10.5px;">
+              ${hyphenDivider}
+              <div style="display:flex;justify-content:space-between;font-size:10px;">
                 <span>TOTAL:</span>
                 <span>${formatWholeCurrency(totalAmount)}</span>
               </div>
-              <div style="display:flex;justify-content:space-between;font-weight:800;">
+              <div style="display:flex;justify-content:space-between;">
                 <span>PAID:</span>
                 <span>${formatWholeCurrency(paidAmount)}</span>
               </div>
-              <div style="display:flex;justify-content:space-between;font-weight:900;font-size:10.5px;">
+              ${hyphenDivider}
+              <div style="display:flex;justify-content:space-between;font-size:10px;">
                 <span>DUE:</span>
                 <span>${formatWholeCurrency(dueAmount)}</span>
               </div>
             </div>
-            <div style="text-align:center;border-top:1px dashed #000;padding-top:4px;">
-              <div style="font-size:10px;font-weight:900;">Thank You!</div>
-              <div style="display:inline-flex;flex-direction:column;align-items:center;margin-top:4px;padding:4px;border:1px solid #cbd5e1;border-radius:6px;background:#ffffff;">
+            <div style="text-align:center;padding-top:6px;">
+              <div style="font-size:9.5px;font-weight:800;margin-bottom:3px;">Scan &amp; Pay</div>
+              <div style="display:inline-flex;flex-direction:column;align-items:center;padding:4px;border:1px solid #cbd5e1;border-radius:6px;background:#ffffff;">
                 ${qrSvgHtml}
-                <span style="font-size:8.5px;font-weight:900;margin-top:2px;">Pay ${formatWholeCurrency(qrAmt)}</span>
               </div>
+              <div style="font-size:10px;font-weight:900;margin-top:4px;">Thank You!</div>
             </div>
             ${tcHtml}
           </div>
@@ -11827,7 +12051,13 @@
 
       document.getElementById("selectNormalA5PrintBtn").addEventListener("click", () => {
         closePrintModeChoiceModal();
-        window.print();
+        // Ensure A5 Bill Modal is open and visible for Wi-Fi / System Print Preview
+        if (currentPreviewBillRecord) {
+          openA4BillModal(currentPreviewBillRecord);
+        }
+        setTimeout(() => {
+          window.print();
+        }, 120);
       });
 
       function buildEscPosBillPayload(billRecord) {
@@ -11838,26 +12068,31 @@
         const ALIGN_CENTER = ESC + "a" + "\x01";
         const BOLD_ON = ESC + "E" + "\x01";
         const BOLD_OFF = ESC + "E" + "\x00";
-        const DOUBLE_SIZE = GS + "!" + "\x11";
+        const DOUBLE_HEIGHT = GS + "!" + "\x01";
         const NORMAL_SIZE = GS + "!" + "\x00";
         const FEED_CUT = "\n\n\n\n" + GS + "V" + "\x41" + "\x03";
 
         const lineWidth = 32;
-        const dashLine = ".".repeat(lineWidth) + "\n";
+        const hyphenLine = "-".repeat(lineWidth) + "\n";
         const padLR = (leftStr, rightStr) => {
           const l = String(leftStr || "");
           const r = String(rightStr || "");
           const spaces = Math.max(1, lineWidth - l.length - r.length);
           return l + " ".repeat(spaces) + r + "\n";
         };
-        const formatItemLine4Col = (nameStr, qtyVal, priceVal, amtVal) => {
-          const qStr = String(qtyVal);
-          const pStr = String(priceVal);
-          const aStr = String(amtVal);
-          const rightCols = `${qStr.padStart(3, " ")} ${pStr.padStart(5, " ")} ${aStr.padStart(6, " ")}`;
-          const maxNameLen = Math.max(8, lineWidth - rightCols.length - 1);
-          const nStr = String(nameStr || "").slice(0, maxNameLen).padEnd(maxNameLen, " ");
-          return `${nStr} ${rightCols}\n`;
+        const centerInCol = (valStr, colW) => {
+          const s = String(valStr || "").slice(0, colW);
+          const leftPad = Math.floor((colW - s.length) / 2);
+          const rightPad = colW - s.length - leftPad;
+          return " ".repeat(Math.max(0, leftPad)) + s + " ".repeat(Math.max(0, rightPad));
+        };
+        // 32 chars total: Item (12) + " " + Qty (4) + " " + Rate (6) + " " + Amt (7) = 32
+        const formatRow4ColCentered = (nameStr, qtyVal, rateVal, amtVal) => {
+          const c1 = String(nameStr || "").slice(0, 12).padEnd(12, " ");
+          const c2 = centerInCol(qtyVal, 4);
+          const c3 = centerInCol(rateVal, 6);
+          const c4 = centerInCol(amtVal, 7);
+          return `${c1} ${c2} ${c3} ${c4}\n`;
         };
 
         const totalAmount =
@@ -11876,33 +12111,37 @@
         const tcList = Array.isArray(state.termsAndConditions) ? state.termsAndConditions : [];
 
         let out = "";
-        out += INIT + ALIGN_CENTER + BOLD_ON + DOUBLE_SIZE;
+        // Single-line bold tall shop header (20 chars fits comfortably on 32-char 58mm width without wrapping)
+        out += INIT + ALIGN_CENTER + BOLD_ON + DOUBLE_HEIGHT;
         out += "MS ADVANCED MOBICARE\n";
         out += NORMAL_SIZE + BOLD_OFF;
         out += "KharddaSinga, Swarupnagar\n";
         out += "North 24 Parganas, 743286\n";
-        out += "9123360970 / 8013011282\n";
-        out += ALIGN_LEFT + dashLine;
+        out += "Ph- 9123360970 / 8013011282\n";
+        out += ALIGN_LEFT + hyphenLine;
         out += `Bill: ${plainBillNo}\n`;
         out += `Date: ${dateText}\n`;
         out += `Time: ${timeText}\n`;
-        out += `${billRecord.customerName || ""} (${billRecord.mobile || ""})\n`;
-        out += dashLine;
-        out += BOLD_ON + "Item           Qty  Rate    Amt\n" + BOLD_OFF;
+        out += `Cust: ${billRecord.customerName || ""} (${billRecord.mobile || ""})\n`;
+        out += hyphenLine;
+        // Normal (non-bold) header with centered Qty, Rate, Amt columns
+        out += BOLD_OFF + formatRow4ColCentered("Item", "Qty", "Rate", "Amt");
 
         itemsArr.forEach((it) => {
           const qty = Number(it.qty) || 1;
           const rate = Math.round(Number(it.unitPrice) || 0);
           const amt = rate * qty;
-          out += formatItemLine4Col(it.name || "", qty, rate, amt);
+          out += formatRow4ColCentered(it.name || "", qty, rate, amt);
         });
 
-        out += dashLine;
+        out += hyphenLine;
         out += padLR(`Total Items: ${totalItemsCount}`, `Total Qty: ${totalQtyCount}`);
-        out += BOLD_ON + padLR("TOTAL:", `Rs.${Math.round(totalAmount)}`) + BOLD_OFF;
+        out += hyphenLine;
+        out += padLR("TOTAL:", `Rs.${Math.round(totalAmount)}`);
         out += padLR("PAID:", `Rs.${Math.round(paidAmount)}`);
-        out += BOLD_ON + padLR("DUE:", `Rs.${Math.round(dueAmount)}`) + BOLD_OFF;
-        out += dashLine + ALIGN_CENTER + BOLD_ON + "Thank You!\n" + BOLD_OFF;
+        out += hyphenLine;
+        out += padLR("DUE:", `Rs.${Math.round(dueAmount)}`);
+        out += "\n" + ALIGN_CENTER + BOLD_ON + "Scan & Pay\n" + BOLD_OFF;
 
         // Native ESC/POS QR code command (model 2, size 4, error correction M)
         const qrBytes = qrPayload.length + 3;
@@ -11913,7 +12152,7 @@
         out += GS + "(k" + "\x03\x00\x31\x45\x31";
         out += GS + "(k" + pL + pH + "\x31\x50\x30" + qrPayload;
         out += GS + "(k" + "\x03\x00\x31\x51\x30";
-        out += "\n";
+        out += "\n" + ALIGN_CENTER + BOLD_ON + "Thank You!\n" + BOLD_OFF;
 
         if (tcList.length > 0) {
           out += ALIGN_LEFT + "Terms & Conditions:\n";
@@ -14092,7 +14331,7 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
         return false;
       }
 
-      // Save and open generated PDF files via Cordova File + FileOpener2 with browser fallback
+      // Save and open generated PDF files via Cordova File + FileOpener2 (Google Drive / System PDF Viewer)
       async function saveAndOpenPdfFile(fileName, pdfBlobOrArrayBuffer) {
         const cleanName = String(fileName || "Report.pdf").replace(/[^a-zA-Z0-9._-]/g, "_");
         const finalName = cleanName.toLowerCase().endsWith(".pdf") ? cleanName : cleanName + ".pdf";
@@ -14120,12 +14359,33 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
         }
 
         await requestAllAndroidPermissions();
+        const arrayBuf = await blob.arrayBuffer();
         const targetDir =
+          window.cordova.file.externalCacheDirectory ||
           window.cordova.file.externalDataDirectory ||
           window.cordova.file.cacheDirectory ||
           window.cordova.file.dataDirectory;
 
-        return new Promise((resolve, reject) => {
+        const openInViewer = (nativeUrl) => {
+          if (window.cordova.plugins && window.cordova.plugins.fileOpener2) {
+            window.cordova.plugins.fileOpener2.open(nativeUrl, "application/pdf", {
+              success: () => {},
+              error: () => {
+                if (typeof window.cordova.plugins.fileOpener2.showOpenWithDialog === "function") {
+                  window.cordova.plugins.fileOpener2.showOpenWithDialog(nativeUrl, "application/pdf", {
+                    error: () => showBridgeToast("PDF saved: " + finalName)
+                  });
+                } else {
+                  showBridgeToast("PDF saved: " + finalName);
+                }
+              }
+            });
+          } else if (window.plugins && window.plugins.socialsharing) {
+            window.plugins.socialsharing.share(null, finalName, nativeUrl, null);
+          }
+        };
+
+        return new Promise((resolve) => {
           window.resolveLocalFileSystemURL(
             targetDir,
             (dirEntry) => {
@@ -14137,35 +14397,31 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
                     (fileWriter) => {
                       fileWriter.onwriteend = () => {
                         const nativeUrl = fileEntry.toURL();
-                        showBridgeToast("PDF saved: " + finalName);
-                        if (window.cordova.plugins && window.cordova.plugins.fileOpener2) {
-                          window.cordova.plugins.fileOpener2.open(nativeUrl, "application/pdf", {
-                            error: () => showBridgeToast("PDF saved in app storage")
-                          });
-                        }
+                        showBridgeToast("Opening PDF: " + finalName);
+                        openInViewer(nativeUrl);
                         resolve(nativeUrl);
                       };
-                      fileWriter.onerror = (e) => {
+                      fileWriter.onerror = () => {
                         triggerFallback();
-                        reject(e);
+                        resolve(finalName);
                       };
-                      fileWriter.write(blob);
+                      fileWriter.write(new Blob([arrayBuf], { type: "application/pdf" }));
                     },
-                    (err) => {
+                    () => {
                       triggerFallback();
-                      reject(err);
+                      resolve(finalName);
                     }
                   );
                 },
-                (err) => {
+                () => {
                   triggerFallback();
-                  reject(err);
+                  resolve(finalName);
                 }
               );
             },
-            (err) => {
+            () => {
               triggerFallback();
-              reject(err);
+              resolve(finalName);
             }
           );
         });
