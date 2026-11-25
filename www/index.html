@@ -2595,10 +2595,12 @@
       width: 100%;
       border-radius: 14px;
       overflow: hidden;
-      background: #0f172a;
+      background: #1e293b;
       aspect-ratio: 3 / 4;
-      max-height: 360px;
+      max-height: 340px;
       position: relative;
+      transform: translateZ(0);
+      will-change: transform;
     }
 
     .scanner-video-box video {
@@ -2606,6 +2608,77 @@
       height: 100%;
       object-fit: cover;
       display: block;
+      background: transparent;
+    }
+
+    .scanner-reticle-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      background: radial-gradient(circle at center, transparent 34%, rgba(15, 23, 42, 0.42) 100%);
+    }
+
+    .scanner-focus-box {
+      width: 196px;
+      height: 146px;
+      position: relative;
+      border-radius: 12px;
+      box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.36);
+    }
+
+    .scanner-corner {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      border-color: #22c55e;
+      border-style: solid;
+    }
+
+    .scanner-corner.tl {
+      top: -2px;
+      left: -2px;
+      border-width: 4px 0 0 4px;
+      border-top-left-radius: 10px;
+    }
+
+    .scanner-corner.tr {
+      top: -2px;
+      right: -2px;
+      border-width: 4px 4px 0 0;
+      border-top-right-radius: 10px;
+    }
+
+    .scanner-corner.bl {
+      bottom: -2px;
+      left: -2px;
+      border-width: 0 0 4px 4px;
+      border-bottom-left-radius: 10px;
+    }
+
+    .scanner-corner.br {
+      bottom: -2px;
+      right: -2px;
+      border-width: 0 4px 4px 0;
+      border-bottom-right-radius: 10px;
+    }
+
+    .scanner-laser-line {
+      position: absolute;
+      left: 10px;
+      right: 10px;
+      top: 50%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #ef4444, transparent);
+      box-shadow: 0 0 8px rgba(239, 68, 68, 0.85);
+      animation: scannerLaserPulse 1.6s ease-in-out infinite;
+    }
+
+    @keyframes scannerLaserPulse {
+      0%, 100% { transform: translateY(-28px); opacity: 0.7; }
+      50% { transform: translateY(28px); opacity: 1; }
     }
 
     /* Full-Width Readable Toast Notification */
@@ -3514,8 +3587,17 @@
         <button type="button" id="closeScannerBtn" class="modal-close no-wrap" aria-label="Close">&times;</button>
       </div>
       <div class="modal-body">
-        <div class="scanner-video-box">
+        <div class="scanner-video-box" id="scannerVideoBox">
           <video id="scannerVideo" playsinline muted autoplay></video>
+          <div class="scanner-reticle-overlay">
+            <div class="scanner-focus-box" id="scannerFocusBox">
+              <span class="scanner-corner tl"></span>
+              <span class="scanner-corner tr"></span>
+              <span class="scanner-corner bl"></span>
+              <span class="scanner-corner br"></span>
+              <span class="scanner-laser-line"></span>
+            </div>
+          </div>
         </div>
         <div id="scannerStatusText" class="live-match-sub">Point camera at Barcode or QR Code, scan image, or enter code below.</div>
 
@@ -4027,7 +4109,26 @@
         <button type="button" id="closeSaleProductListBtn" class="modal-close no-wrap" aria-label="Close">&times;</button>
       </div>
       <div class="modal-body">
-        <input type="text" id="saleProductSearchInput" class="text-input" placeholder="Search product name..." autocomplete="off" />
+        <div class="search-box" style="padding-left:10px;">
+          <span class="search-icon" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </span>
+          <input type="text" id="saleProductSearchInput" class="search-input" placeholder="Search product name or scan code..." autocomplete="off" />
+          <button type="button" id="saleProductScanBtn" class="btn-scan-inline no-wrap" title="Scan Barcode / QR Code">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+              <path d="M3 7V5a2 2 0 0 1 2-2h2"></path>
+              <path d="M17 3h2a2 2 0 0 1 2 2v2"></path>
+              <path d="M21 17v2a2 2 0 0 1-2 2h-2"></path>
+              <path d="M7 21H5a2 2 0 0 1-2-2v-2"></path>
+              <line x1="7" y1="12" x2="17" y2="12"></line>
+            </svg>
+            <span>Scan</span>
+          </button>
+          <button type="button" id="clearSaleProductSearchBtn" class="search-clear no-wrap" aria-label="Clear search">&times;</button>
+        </div>
         <div id="saleProductCatalogList" class="product-list"></div>
       </div>
     </div>
@@ -5189,9 +5290,50 @@
         showToast("Image removed");
       });
 
-      // Barcode & QR Scanner
+      // Barcode & QR Scanner with Sharp Beep Sound, Instant Camera & 4-Corner Focus Box
       let scannerStream = null;
       let scannerRafId = null;
+      let scannerAudioCtx = null;
+      let scannerRoiCanvas = null;
+
+      function unlockScannerBeepAudio() {
+        try {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (!AudioCtx) return;
+          if (!scannerAudioCtx) {
+            scannerAudioCtx = new AudioCtx();
+          }
+          if (scannerAudioCtx.state === "suspended") {
+            scannerAudioCtx.resume().catch(() => {});
+          }
+        } catch (e) {}
+      }
+
+      function playSharpScanBeep() {
+        try {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (!AudioCtx) return;
+          if (!scannerAudioCtx) {
+            scannerAudioCtx = new AudioCtx();
+          }
+          if (scannerAudioCtx.state === "suspended") {
+            scannerAudioCtx.resume().catch(() => {});
+          }
+          const now = scannerAudioCtx.currentTime;
+          const osc = scannerAudioCtx.createOscillator();
+          const gain = scannerAudioCtx.createGain();
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(2450, now);
+          osc.frequency.exponentialRampToValueAtTime(2850, now + 0.08);
+          gain.gain.setValueAtTime(0.001, now);
+          gain.gain.linearRampToValueAtTime(0.45, now + 0.01);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
+          osc.connect(gain);
+          gain.connect(scannerAudioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.14);
+        } catch (e) {}
+      }
 
       function stopCameraScanner() {
         if (scannerRafId) {
@@ -5215,6 +5357,7 @@
       function applyScannedCode(codeVal) {
         const clean = String(codeVal || "").trim();
         if (!clean) return;
+        playSharpScanBeep();
         stopCameraScanner();
         scannerModal.classList.remove("open");
         syncPlusButtonModalState();
@@ -5228,6 +5371,31 @@
           warrantySearchInput.value = extractedBill;
           renderWarrantyFullPage();
           showToast(`Showing Bill: ${extractedBill}`);
+        } else if (scanTargetMode === "sale-select") {
+          saleProductSearchInput.value = clean;
+          const clearSaleSearchBtn = document.getElementById("clearSaleProductSearchBtn");
+          if (clearSaleSearchBtn) clearSaleSearchBtn.classList.toggle("visible", clean.length > 0);
+          renderSaleProductCatalogList();
+          const qLow = clean.toLowerCase();
+          const exactProd = state.products.find(
+            (p) =>
+              String(p.barcode || "").trim().toLowerCase() === qLow ||
+              String(p.itemNo || "").trim().toLowerCase() === qLow ||
+              String(p.name || "").trim().toLowerCase() === qLow
+          );
+          if (exactProd) {
+            const stock = getEffectiveAvailableStock(exactProd.id);
+            if (stock > 0) {
+              pendingSelectedProductId = exactProd.id;
+              saleNameMode = "same";
+              closeSaleProductListModal();
+              syncSelectedProductBoxUI();
+              renderCartUI();
+              showToast(`Selected: ${exactProd.name}`);
+              return;
+            }
+          }
+          showToast(`Scanned: ${clean}`);
         } else {
           searchQuery = clean;
           productSearchInput.value = clean;
@@ -5237,18 +5405,74 @@
         }
       }
 
+      function detectCodeInsideFocusBox(detector) {
+        const vw = scannerVideo.videoWidth;
+        const vh = scannerVideo.videoHeight;
+        if (!vw || !vh) return Promise.resolve([]);
+
+        const boxEl = document.getElementById("scannerVideoBox");
+        const focusEl = document.getElementById("scannerFocusBox");
+        if (!boxEl || !focusEl) {
+          return detector.detect(scannerVideo);
+        }
+
+        const boxRect = boxEl.getBoundingClientRect();
+        const focusRect = focusEl.getBoundingClientRect();
+        if (!boxRect.width || !boxRect.height || !focusRect.width || !focusRect.height) {
+          return detector.detect(scannerVideo);
+        }
+
+        // Map object-fit: cover visible viewport to source video coordinates
+        const containerRatio = boxRect.width / boxRect.height;
+        const videoRatio = vw / vh;
+        let visibleW = vw;
+        let visibleH = vh;
+        let offsetX = 0;
+        let offsetY = 0;
+
+        if (videoRatio > containerRatio) {
+          visibleW = vh * containerRatio;
+          offsetX = (vw - visibleW) / 2;
+        } else {
+          visibleH = vw / containerRatio;
+          offsetY = (vh - visibleH) / 2;
+        }
+
+        const relLeft = Math.max(0, (focusRect.left - boxRect.left) / boxRect.width);
+        const relTop = Math.max(0, (focusRect.top - boxRect.top) / boxRect.height);
+        const relW = Math.min(1 - relLeft, focusRect.width / boxRect.width);
+        const relH = Math.min(1 - relTop, focusRect.height / boxRect.height);
+
+        const sx = Math.max(0, Math.floor(offsetX + relLeft * visibleW));
+        const sy = Math.max(0, Math.floor(offsetY + relTop * visibleH));
+        const sw = Math.max(40, Math.min(vw - sx, Math.floor(relW * visibleW)));
+        const sh = Math.max(40, Math.min(vh - sy, Math.floor(relH * visibleH)));
+
+        if (!scannerRoiCanvas) {
+          scannerRoiCanvas = document.createElement("canvas");
+        }
+        scannerRoiCanvas.width = sw;
+        scannerRoiCanvas.height = sh;
+        const rCtx = scannerRoiCanvas.getContext("2d", { willReadFrequently: true });
+        rCtx.drawImage(scannerVideo, sx, sy, sw, sh, 0, 0, sw, sh);
+        return detector.detect(scannerRoiCanvas);
+      }
+
       async function openScannerModal(mode) {
+        unlockScannerBeepAudio();
         scanTargetMode = mode;
         manualScanCodeInput.value = "";
         if (mode === "add") {
           document.getElementById("scannerModalTitle").textContent = "Scan Barcode / QR for Item";
         } else if (mode === "warranty") {
           document.getElementById("scannerModalTitle").textContent = "Scan Bill QR Code";
+        } else if (mode === "sale-select") {
+          document.getElementById("scannerModalTitle").textContent = "Scan Product for Sale";
         } else {
           document.getElementById("scannerModalTitle").textContent = "Scan Barcode / QR to Search";
         }
         const statusEl = document.getElementById("scannerStatusText");
-        statusEl.textContent = "Requesting camera permission...";
+        statusEl.textContent = "Hold barcode or QR inside the 4-corner box";
         scannerModal.classList.add("open");
         syncPlusButtonModalState();
 
@@ -5258,24 +5482,30 @@
         }
 
         try {
+          if (scannerStream) {
+            stopCameraScanner();
+          }
           scannerStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: { ideal: "environment" } },
+            video: {
+              facingMode: { ideal: "environment" },
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            },
             audio: false
           });
           scannerVideo.srcObject = scannerStream;
-          await scannerVideo.play();
+          scannerVideo.play().catch(() => {});
 
           if ("BarcodeDetector" in window) {
             const detector = new window.BarcodeDetector({
               formats: ["qr_code", "ean_13", "ean_8", "code_128", "code_39", "upc_a", "upc_e", "data_matrix"]
             });
-            statusEl.textContent = "Scanning live... Hold Barcode or QR Code in frame.";
 
             const tick = async () => {
               if (!scannerModal.classList.contains("open")) return;
               try {
-                if (scannerVideo.readyState >= 2) {
-                  const codes = await detector.detect(scannerVideo);
+                if (scannerVideo.readyState >= 2 && scannerVideo.videoWidth > 0) {
+                  const codes = await detectCodeInsideFocusBox(detector);
                   if (codes && codes.length > 0 && codes[0].rawValue) {
                     applyScannedCode(codes[0].rawValue);
                     return;
@@ -6029,7 +6259,9 @@
 
         const filtered = state.products.filter((p) => {
           if (!qLower) return true;
-          return String(p.name || "").toLowerCase().includes(qLower);
+          return `${p.name || ""} ${p.barcode || ""} ${p.itemNo || ""} ${p.company || ""} ${p.locationNo || ""}`
+            .toLowerCase()
+            .includes(qLower);
         });
 
         if (filtered.length === 0) {
@@ -6084,6 +6316,8 @@
 
       function openSaleProductListModal() {
         saleProductSearchInput.value = "";
+        const clearSaleSearchBtn = document.getElementById("clearSaleProductSearchBtn");
+        if (clearSaleSearchBtn) clearSaleSearchBtn.classList.remove("visible");
         renderSaleProductCatalogList();
         saleProductListModal.classList.add("open");
         syncPlusButtonModalState();
@@ -11355,17 +11589,121 @@
         window.print();
       });
 
-      document.getElementById("selectThermal2InchPrintBtn").addEventListener("click", () => {
-        if (!currentPreviewBillRecord) return;
-        const connectedDev = String(state.connectedBluetoothPrinter || "").trim();
-        if (!connectedDev) {
-          closePrintModeChoiceModal();
-          showToast("Printer Not Connected");
+      function buildEscPosBillPayload(billRecord) {
+        const ESC = "\x1B";
+        const GS = "\x1D";
+        const INIT = ESC + "@";
+        const ALIGN_LEFT = ESC + "a" + "\x00";
+        const ALIGN_CENTER = ESC + "a" + "\x01";
+        const BOLD_ON = ESC + "E" + "\x01";
+        const BOLD_OFF = ESC + "E" + "\x00";
+        const FEED_CUT = "\n\n\n\n" + GS + "V" + "\x41" + "\x03";
+
+        const lineWidth = 32;
+        const dashLine = "-".repeat(lineWidth) + "\n";
+        const padLR = (leftStr, rightStr) => {
+          const l = String(leftStr || "");
+          const r = String(rightStr || "");
+          const spaces = Math.max(1, lineWidth - l.length - r.length);
+          return l + " ".repeat(spaces) + r + "\n";
+        };
+
+        const totalAmount =
+          billRecord.totalAmount !== undefined
+            ? Number(billRecord.totalAmount) || 0
+            : (billRecord.items || []).reduce((sum, it) => sum + (Number(it.unitPrice) || 0) * (Number(it.qty) || 1), 0);
+        const paidAmount = billRecord.paidAmount !== undefined ? Number(billRecord.paidAmount) || 0 : totalAmount;
+        const dueAmount = billRecord.dueAmount !== undefined ? Number(billRecord.dueAmount) || 0 : Math.max(0, totalAmount - paidAmount);
+        const discAmt = Number(billRecord.discountAmount) || 0;
+        const payMode = billRecord.paymentMode || "Online";
+
+        let out = "";
+        out += INIT + ALIGN_CENTER + BOLD_ON;
+        out += "MS ADVANCED MOBICARE\n";
+        out += BOLD_OFF;
+        out += "KharddaSinga, Swarupnagar, N24PGS\n";
+        out += "Ph: 9123360970 / 8013011282\n";
+        out += ALIGN_LEFT + dashLine;
+        out += `Bill: ${billRecord.billNo || ""}\n`;
+        out += `Date: ${billRecord.dateDisplay || ""}\n`;
+        out += `Cust: ${billRecord.customerName || ""} (${billRecord.mobile || ""})\n`;
+        out += dashLine;
+
+        (billRecord.items || []).forEach((it) => {
+          const qty = Number(it.qty) || 1;
+          const rate = Math.round(Number(it.unitPrice) || 0);
+          const amt = rate * qty;
+          out += BOLD_ON + String(it.name || "") + BOLD_OFF + "\n";
+          out += padLR(`${qty} x Rs.${rate}`, `Rs.${amt}`);
+        });
+
+        out += dashLine;
+        if (discAmt > 0) {
+          out += padLR("Discount:", `-Rs.${Math.round(discAmt)}`);
+        }
+        out += BOLD_ON + padLR("TOTAL:", `Rs.${Math.round(totalAmount)}`) + BOLD_OFF;
+        out += padLR(`Paid (${payMode}):`, `Rs.${Math.round(paidAmount)}`);
+        out += BOLD_ON + padLR("DUE:", `Rs.${Math.round(dueAmount)}`) + BOLD_OFF;
+        out += dashLine + ALIGN_CENTER + "Thank You!" + FEED_CUT;
+        return out;
+      }
+
+      function sendThermalBillDirect(billRecord, connectedDev) {
+        const escPayload = buildEscPosBillPayload(billRecord);
+
+        if (window.bluetoothSerial && typeof window.bluetoothSerial.write === "function") {
+          const mac =
+            (window.MSAppNativeBridge && window.MSAppNativeBridge.connectedMac) ||
+            localStorage.getItem("ms_bt_printer_mac") ||
+            "";
+
+          const doWrite = () => {
+            window.bluetoothSerial.write(
+              escPayload,
+              () => {
+                showToast(`Printed on ${connectedDev}`);
+              },
+              () => {
+                const thermalDiv = document.getElementById("thermalBillPrintContainer");
+                thermalDiv.innerHTML = buildThermal2InchBillHtml(billRecord);
+                thermalDiv.style.display = "block";
+                document.body.classList.add("printing-thermal-bill");
+                const cleanupThermal = () => {
+                  document.body.classList.remove("printing-thermal-bill");
+                  thermalDiv.style.display = "none";
+                  window.removeEventListener("afterprint", cleanupThermal);
+                };
+                window.addEventListener("afterprint", cleanupThermal);
+                window.print();
+                setTimeout(cleanupThermal, 1200);
+              }
+            );
+          };
+
+          if (typeof window.bluetoothSerial.isConnected === "function") {
+            window.bluetoothSerial.isConnected(
+              () => doWrite(),
+              () => {
+                if (mac && typeof window.bluetoothSerial.connect === "function") {
+                  window.bluetoothSerial.connect(
+                    mac,
+                    () => doWrite(),
+                    () => showToast(`Could not connect to ${connectedDev}. Turn printer ON.`)
+                  );
+                } else {
+                  doWrite();
+                }
+              }
+            );
+            return;
+          }
+
+          doWrite();
           return;
         }
-        closePrintModeChoiceModal();
+
         const thermalDiv = document.getElementById("thermalBillPrintContainer");
-        thermalDiv.innerHTML = buildThermal2InchBillHtml(currentPreviewBillRecord);
+        thermalDiv.innerHTML = buildThermal2InchBillHtml(billRecord);
         thermalDiv.style.display = "block";
         document.body.classList.add("printing-thermal-bill");
 
@@ -11377,7 +11715,19 @@
         window.addEventListener("afterprint", cleanupThermal);
         window.print();
         setTimeout(cleanupThermal, 1200);
-        showToast(`Direct printing to ${connectedDev}...`);
+        showToast(`Printing to ${connectedDev}...`);
+      }
+
+      document.getElementById("selectThermal2InchPrintBtn").addEventListener("click", () => {
+        if (!currentPreviewBillRecord) return;
+        const connectedDev = String(state.connectedBluetoothPrinter || "").trim();
+        if (!connectedDev) {
+          closePrintModeChoiceModal();
+          showToast("Printer Not Connected");
+          return;
+        }
+        closePrintModeChoiceModal();
+        sendThermalBillDirect(currentPreviewBillRecord, connectedDev);
       });
       document.getElementById("shareA4BillScreenshotBtn").addEventListener("click", () => {
         shareCurrentBillScreenshot();
@@ -11434,7 +11784,29 @@
       saleProductListModal.addEventListener("click", (e) => {
         if (e.target === saleProductListModal) closeSaleProductListModal();
       });
-      saleProductSearchInput.addEventListener("input", debounceFn(renderSaleProductCatalogList, 160));
+      const debouncedSaleCatalogRender = debounceFn(renderSaleProductCatalogList, 160);
+      saleProductSearchInput.addEventListener("input", () => {
+        const clearSaleSearchBtn = document.getElementById("clearSaleProductSearchBtn");
+        if (clearSaleSearchBtn) {
+          clearSaleSearchBtn.classList.toggle("visible", (saleProductSearchInput.value || "").trim().length > 0);
+        }
+        debouncedSaleCatalogRender();
+      });
+      const saleProductScanBtn = document.getElementById("saleProductScanBtn");
+      if (saleProductScanBtn) {
+        saleProductScanBtn.addEventListener("click", () => {
+          openScannerModal("sale-select");
+        });
+      }
+      const clearSaleProductSearchBtn = document.getElementById("clearSaleProductSearchBtn");
+      if (clearSaleProductSearchBtn) {
+        clearSaleProductSearchBtn.addEventListener("click", () => {
+          saleProductSearchInput.value = "";
+          clearSaleProductSearchBtn.classList.remove("visible");
+          renderSaleProductCatalogList();
+          saleProductSearchInput.focus();
+        });
+      }
 
       document.getElementById("saleProductCatalogList").addEventListener("click", (e) => {
         const cardBtn = e.target.closest("[data-select-sale-prod-id]");
@@ -12987,6 +13359,21 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
           const devName = opt.getAttribute("data-connect-bt-name") || "";
           if (!devName) return;
           state.connectedBluetoothPrinter = devName;
+          const matchedDev = scannedBluetoothDevices.find(
+            (d) => (typeof d === "object" && (d.name === devName || d.address === devName))
+          );
+          if (matchedDev && matchedDev.address && window.MSAppNativeBridge && typeof window.MSAppNativeBridge.connectBluetoothPrinterNative === "function") {
+            window.MSAppNativeBridge.connectBluetoothPrinterNative(matchedDev.address, devName);
+          } else if (window.bluetoothSerial && typeof window.bluetoothSerial.list === "function") {
+            window.bluetoothSerial.list((paired) => {
+              const found = (paired || []).find(
+                (p) => String(p.name || "").trim().toLowerCase() === devName.toLowerCase() || String(p.address || "").trim().toLowerCase() === devName.toLowerCase()
+              );
+              if (found && found.address && typeof window.bluetoothSerial.connect === "function") {
+                window.bluetoothSerial.connect(found.address, () => {}, () => {});
+              }
+            }, () => {});
+          }
           saveState();
           syncBluetoothPrinterUI();
           closePrinterConnectFullPage();
@@ -13372,9 +13759,12 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
 
       window.MSAppNativeBridge.requestAllAndroidPermissions = requestAllAndroidPermissions;
 
-      // Open native Cordova BarcodeScanner when available, else fallback to WebView camera stream
+      // Prefer instant WebView camera with 4-corner reticle when BarcodeDetector is supported; fallback to native Cordova BarcodeScanner
       async function launchNativeScannerIfAvailable() {
-        await requestAllAndroidPermissions();
+        requestAllAndroidPermissions();
+        if ("BarcodeDetector" in window && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          return false;
+        }
         const statusEl = document.getElementById("scannerStatusText");
         const manualInput = document.getElementById("manualScanCodeInput");
         const applyBtn = document.getElementById("applyScannedCodeBtn");
@@ -13621,6 +14011,7 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
       }
 
       window.MSAppNativeBridge.printEscPosText = printEscPosText;
+      window.MSAppNativeBridge.connectBluetoothPrinterNative = connectBluetoothPrinterNative;
 
       function syncAppStatusBarColor() {
         try {
@@ -13665,7 +14056,7 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
       }, false);
 
       window.addEventListener("DOMContentLoaded", () => {
-        ["searchScanBtn", "addScanBtn", "warrantyScanCodeBtn"].forEach((id) => {
+        ["searchScanBtn", "addScanBtn", "warrantyScanCodeBtn", "saleProductScanBtn"].forEach((id) => {
           const btn = document.getElementById(id);
           if (btn) {
             btn.addEventListener("click", () => {
