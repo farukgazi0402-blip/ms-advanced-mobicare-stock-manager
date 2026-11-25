@@ -5556,23 +5556,38 @@
           }
           return;
         } catch (pdfErr) {
-          let printDiv = document.getElementById(containerId);
-          if (!printDiv) {
-            printDiv = document.createElement("div");
-            printDiv.id = containerId;
-            document.body.appendChild(printDiv);
-          }
-          printDiv.innerHTML = reportHtml;
-          printDiv.style.display = "block";
-          document.body.classList.add(bodyPrintClass);
-          const cleanupPrint = () => {
-            document.body.classList.remove(bodyPrintClass);
-            printDiv.style.display = "none";
-            window.removeEventListener("afterprint", cleanupPrint);
-          };
-          window.addEventListener("afterprint", cleanupPrint);
-          window.print();
-          setTimeout(cleanupPrint, 1200);
+          try {
+            const fallbackCanvas = document.createElement("canvas");
+            fallbackCanvas.width = 1240;
+            fallbackCanvas.height = 1754;
+            const fCtx = fallbackCanvas.getContext("2d");
+            fCtx.fillStyle = "#ffffff";
+            fCtx.fillRect(0, 0, fallbackCanvas.width, fallbackCanvas.height);
+            fCtx.fillStyle = "#0f172a";
+            fCtx.font = "900 26px sans-serif";
+            fCtx.fillText("MS ADVANCED MOBICARE", 56, 88);
+            fCtx.font = "600 16px sans-serif";
+            fCtx.fillText(`Report: ${fileName} · Date: ${formatDisplayDate(getTodayIsoDate())}`, 56, 124);
+            const plainText = String(reportHtml || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+            const lines = wrapCanvasLines(fCtx, plainText, 1128);
+            let ty = 170;
+            for (const ln of lines) {
+              if (ty > 1680) break;
+              fCtx.fillText(ln, 56, ty);
+              ty += 24;
+            }
+            const dataUrl = fallbackCanvas.toDataURL("image/jpeg", 0.9);
+            const b64 = dataUrl.split(",")[1] || "";
+            const binStr = atob(b64);
+            const bytes = new Uint8Array(binStr.length);
+            for (let i = 0; i < binStr.length; i++) bytes[i] = binStr.charCodeAt(i);
+            const pdfBlob = buildSimplePdfFromJpegPages([{ width: fallbackCanvas.width, height: fallbackCanvas.height, bytes }]);
+            if (window.MSAppNativeBridge && typeof window.MSAppNativeBridge.saveAndOpenPdfFile === "function") {
+              await window.MSAppNativeBridge.saveAndOpenPdfFile(fileName, pdfBlob);
+              return;
+            }
+          } catch (fbErr) {}
+          showToast("Could not generate PDF on this device");
         }
       }
 
@@ -14352,90 +14367,118 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
           blob = new Blob([pdfBlobOrArrayBuffer], { type: "application/pdf" });
         }
 
-        const triggerFallback = () => {
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = finalName;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          setTimeout(() => URL.revokeObjectURL(url), 4000);
+        const triggerBrowserDownload = () => {
+          try {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = finalName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 5000);
+          } catch (e) {}
         };
 
         if (!window.cordova || !window.resolveLocalFileSystemURL || !window.cordova.file) {
-          triggerFallback();
+          triggerBrowserDownload();
           showBridgeToast("PDF ready: " + finalName);
           return finalName;
         }
 
-        await requestAllAndroidPermissions();
-        const arrayBuf = await blob.arrayBuffer();
-        const targetDir =
-          window.cordova.file.externalCacheDirectory ||
-          window.cordova.file.externalDataDirectory ||
-          window.cordova.file.cacheDirectory ||
-          window.cordova.file.dataDirectory;
+        try {
+          await requestAllAndroidPermissions();
+        } catch (permErr) {}
+
+        const publicDownloadDir = window.cordova.file.externalRootDirectory
+          ? window.cordova.file.externalRootDirectory.replace(/\/+$/, "") + "/Download"
+          : "";
+
+        const candidateDirs = [
+          publicDownloadDir,
+          window.cordova.file.externalDataDirectory,
+          window.cordova.file.externalCacheDirectory,
+          window.cordova.file.cacheDirectory,
+          window.cordova.file.dataDirectory
+        ].filter(Boolean);
 
         const openInViewer = (nativeUrl) => {
-          if (window.cordova.plugins && window.cordova.plugins.fileOpener2) {
-            window.cordova.plugins.fileOpener2.open(nativeUrl, "application/pdf", {
-              success: () => {},
-              error: () => {
-                if (typeof window.cordova.plugins.fileOpener2.showOpenWithDialog === "function") {
-                  window.cordova.plugins.fileOpener2.showOpenWithDialog(nativeUrl, "application/pdf", {
-                    error: () => showBridgeToast("PDF saved: " + finalName)
-                  });
-                } else {
-                  showBridgeToast("PDF saved: " + finalName);
+          try {
+            if (window.cordova.plugins && window.cordova.plugins.fileOpener2) {
+              window.cordova.plugins.fileOpener2.open(nativeUrl, "application/pdf", {
+                success: () => {},
+                error: () => {
+                  if (typeof window.cordova.plugins.fileOpener2.showOpenWithDialog === "function") {
+                    window.cordova.plugins.fileOpener2.showOpenWithDialog(nativeUrl, "application/pdf", {
+                      error: () => {
+                        if (window.plugins && window.plugins.socialsharing && window.plugins.socialsharing.share) {
+                          window.plugins.socialsharing.share(null, finalName, nativeUrl, null);
+                        } else {
+                          showBridgeToast("PDF saved: " + finalName);
+                        }
+                      }
+                    });
+                  } else if (window.plugins && window.plugins.socialsharing && window.plugins.socialsharing.share) {
+                    window.plugins.socialsharing.share(null, finalName, nativeUrl, null);
+                  } else {
+                    showBridgeToast("PDF saved: " + finalName);
+                  }
                 }
-              }
-            });
-          } else if (window.plugins && window.plugins.socialsharing) {
+              });
+              return;
+            }
+          } catch (openErr) {}
+
+          if (window.plugins && window.plugins.socialsharing && window.plugins.socialsharing.share) {
             window.plugins.socialsharing.share(null, finalName, nativeUrl, null);
+          } else {
+            showBridgeToast("PDF saved: " + finalName);
           }
         };
 
-        return new Promise((resolve) => {
-          window.resolveLocalFileSystemURL(
-            targetDir,
-            (dirEntry) => {
-              dirEntry.getFile(
-                finalName,
-                { create: true, exclusive: false },
-                (fileEntry) => {
-                  fileEntry.createWriter(
-                    (fileWriter) => {
-                      fileWriter.onwriteend = () => {
-                        const nativeUrl = fileEntry.toURL();
-                        showBridgeToast("Opening PDF: " + finalName);
-                        openInViewer(nativeUrl);
-                        resolve(nativeUrl);
-                      };
-                      fileWriter.onerror = () => {
-                        triggerFallback();
-                        resolve(finalName);
-                      };
-                      fileWriter.write(new Blob([arrayBuf], { type: "application/pdf" }));
-                    },
-                    () => {
-                      triggerFallback();
-                      resolve(finalName);
-                    }
-                  );
-                },
-                () => {
-                  triggerFallback();
-                  resolve(finalName);
-                }
-              );
-            },
-            () => {
-              triggerFallback();
-              resolve(finalName);
-            }
-          );
-        });
+        const arrayBuf = await blob.arrayBuffer();
+
+        const tryWriteToDir = (dirPath) =>
+          new Promise((resolve, reject) => {
+            window.resolveLocalFileSystemURL(
+              dirPath,
+              (dirEntry) => {
+                dirEntry.getFile(
+                  finalName,
+                  { create: true, exclusive: false },
+                  (fileEntry) => {
+                    fileEntry.createWriter(
+                      (fileWriter) => {
+                        fileWriter.onwriteend = () => resolve(fileEntry.toURL());
+                        fileWriter.onerror = (e) => reject(e);
+                        try {
+                          fileWriter.write(new Blob([arrayBuf], { type: "application/pdf" }));
+                        } catch (wErr) {
+                          reject(wErr);
+                        }
+                      },
+                      (cErr) => reject(cErr)
+                    );
+                  },
+                  (gErr) => reject(gErr)
+                );
+              },
+              (rErr) => reject(rErr)
+            );
+          });
+
+        for (const dirPath of candidateDirs) {
+          try {
+            const nativeUrl = await tryWriteToDir(dirPath);
+            showBridgeToast("Opening PDF: " + finalName);
+            openInViewer(nativeUrl);
+            return nativeUrl;
+          } catch (dirErr) {}
+        }
+
+        triggerBrowserDownload();
+        showBridgeToast("PDF generated: " + finalName);
+        return finalName;
       }
 
       window.MSAppNativeBridge.saveAndOpenPdfFile = saveAndOpenPdfFile;
