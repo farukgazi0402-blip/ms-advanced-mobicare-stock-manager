@@ -2373,15 +2373,16 @@
     }
 
     .thermal-2in-sheet {
-      width: 58mm;
-      max-width: 58mm;
-      margin: 0 auto;
+      width: 100%;
+      max-width: 100%;
+      margin: 0;
       padding: 4px 2px;
       background: #ffffff;
       color: #000000;
       font-family: "Courier New", Courier, monospace;
-      font-size: 10px;
-      line-height: 1.3;
+      font-size: 10.5px;
+      line-height: 1.32;
+      box-sizing: border-box;
     }
 
     @media print {
@@ -3061,6 +3062,16 @@
             <button type="button" id="openPrinterConnectPageBtn" class="btn-primary no-wrap">Printer Connect</button>
           </div>
           <div id="printerConnectedDeviceText" class="live-match-sub" style="margin-top:8px;">No Bluetooth printer connected.</div>
+        </div>
+
+        <div class="settings-card">
+          <h2 class="settings-card-title no-wrap">Payment QR Code (UPI)</h2>
+          <p class="settings-card-desc">Set the UPI ID where customer bill payment QR will go. QR automatically uses the bill's payable amount.</p>
+          <div style="display:flex;align-items:center;gap:7px;">
+            <input type="text" id="paymentQrUpiInput" class="text-input" placeholder="e.g., yourname@okicici or 9123360970@ybl" autocomplete="off" style="text-transform:none;" />
+            <button type="button" id="savePaymentQrUpiBtn" class="btn-primary no-wrap">Save QR</button>
+          </div>
+          <div id="paymentQrStatusText" class="live-match-sub" style="margin-top:7px;font-weight:700;color:#334155;">No Payment UPI ID set yet.</div>
         </div>
 
         <div class="settings-card">
@@ -4313,6 +4324,7 @@
           lastBackupDateTime: "",
           backupGmailId: "",
           connectedBluetoothPrinter: "",
+          paymentQrUpiId: "",
           termsAndConditions: []
         };
       }
@@ -4364,6 +4376,7 @@
           lastBackupDateTime: typeof parsed.lastBackupDateTime === "string" ? parsed.lastBackupDateTime : "",
           backupGmailId: typeof parsed.backupGmailId === "string" ? parsed.backupGmailId : "",
           connectedBluetoothPrinter: typeof parsed.connectedBluetoothPrinter === "string" ? parsed.connectedBluetoothPrinter : "",
+          paymentQrUpiId: typeof parsed.paymentQrUpiId === "string" ? parsed.paymentQrUpiId.trim() : "",
           termsAndConditions: Array.isArray(parsed.termsAndConditions) ? parsed.termsAndConditions.map((x) => String(x).trim()).filter(Boolean) : []
         };
       }
@@ -4494,7 +4507,34 @@
               window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
             }
           } catch (e) {}
-          renderAll();
+          function syncPaymentQrSettingsUI() {
+        const inp = document.getElementById("paymentQrUpiInput");
+        const statusEl = document.getElementById("paymentQrStatusText");
+        const upiVal = String(state.paymentQrUpiId || "").trim();
+        if (inp && document.activeElement !== inp) {
+          inp.value = upiVal;
+        }
+        if (statusEl) {
+          statusEl.textContent = upiVal
+            ? `Active Payment UPI: ${upiVal} (Amount auto-filled from bill)`
+            : "No Payment UPI ID set yet.";
+        }
+      }
+
+      const savePaymentQrBtn = document.getElementById("savePaymentQrUpiBtn");
+      if (savePaymentQrBtn) {
+        savePaymentQrBtn.addEventListener("click", () => {
+          const inp = document.getElementById("paymentQrUpiInput");
+          const rawUpi = inp ? inp.value.trim() : "";
+          state.paymentQrUpiId = rawUpi;
+          saveState();
+          syncPaymentQrSettingsUI();
+          showToast(rawUpi ? `Payment QR UPI saved: ${rawUpi}` : "Payment QR UPI cleared");
+        });
+      }
+
+      syncPaymentQrSettingsUI();
+      renderAll();
         } else if (isStateNonEmpty(state)) {
           await writeStateToIDB(state);
         }
@@ -5135,6 +5175,200 @@
         }, 2400);
       }
 
+      // Build real downloadable/openable multi-page A4 PDF from any HTML report table/layout (works in Android APK + WebView + Browser)
+      function buildSimplePdfFromJpegPages(jpegPages) {
+        const enc = new TextEncoder();
+        const chunks = [];
+        let offset = 0;
+        const offsets = [0];
+
+        const pushStr = (s) => {
+          const b = enc.encode(s);
+          chunks.push(b);
+          offset += b.length;
+        };
+        const pushBytes = (b) => {
+          chunks.push(b);
+          offset += b.length;
+        };
+        const startObj = (num) => {
+          offsets[num] = offset;
+          pushStr(`${num} 0 obj
+`);
+        };
+
+        pushStr("%PDF-1.4
+");
+        const pageCount = jpegPages.length;
+        // 1: Catalog, 2: Pages, then per page i: Page (3+3i), Contents (4+3i), Image XObject (5+3i)
+        startObj(1);
+        pushStr("<< /Type /Catalog /Pages 2 0 R >>
+endobj
+");
+
+        const kidsRefs = [];
+        for (let i = 0; i < pageCount; i++) kidsRefs.push(`${3 + i * 3} 0 R`);
+        startObj(2);
+        pushStr(`<< /Type /Pages /Kids [ ${kidsRefs.join(" ")} ] /Count ${pageCount} >>
+endobj
+`);
+
+        for (let i = 0; i < pageCount; i++) {
+          const pg = jpegPages[i];
+          const pageObj = 3 + i * 3;
+          const contObj = 4 + i * 3;
+          const imgObj = 5 + i * 3;
+          // A4 portrait in PDF points: 595.28 x 841.89
+          const pdfW = 595.28;
+          const pdfH = 841.89;
+          const drawH = Math.min(pdfH, (pg.height / pg.width) * pdfW);
+          const yPos = pdfH - drawH;
+          const contentStream = `q
+${pdfW.toFixed(2)} 0 0 ${drawH.toFixed(2)} 0 ${yPos.toFixed(2)} cm
+/Im${i} Do
+Q
+`;
+
+          startObj(pageObj);
+          pushStr(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pdfW} ${pdfH}] /Resources << /XObject << /Im${i} ${imgObj} 0 R >> >> /Contents ${contObj} 0 R >>
+endobj
+`);
+
+          startObj(contObj);
+          pushStr(`<< /Length ${contentStream.length} >>
+stream
+${contentStream}endstream
+endobj
+`);
+
+          startObj(imgObj);
+          pushStr(`<< /Type /XObject /Subtype /Image /Width ${pg.width} /Height ${pg.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${pg.bytes.length} >>
+stream
+`);
+          pushBytes(pg.bytes);
+          pushStr("
+endstream
+endobj
+");
+        }
+
+        const xrefStart = offset;
+        const totalObjs = 2 + pageCount * 3;
+        pushStr(`xref
+0 ${totalObjs + 1}
+`);
+        pushStr("0000000000 65535 f 
+");
+        for (let n = 1; n <= totalObjs; n++) {
+          pushStr(String(offsets[n] || 0).padStart(10, "0") + " 00000 n 
+");
+        }
+        pushStr(`trailer
+<< /Size ${totalObjs + 1} /Root 1 0 R >>
+startxref
+${xrefStart}
+%%EOF`);
+        return new Blob(chunks, { type: "application/pdf" });
+      }
+
+      async function exportReportAsA4Pdf(fileName, reportHtml, bodyPrintClass, containerId) {
+        showToast("Generating A4 PDF Report...");
+        try {
+          // Render HTML inside an offscreen A4-proportioned container (794px wide) and rasterize via SVG foreignObject -> Canvas -> A4 PDF
+          const sandboxHost = document.createElement("div");
+          sandboxHost.style.cssText = "position:fixed;left:-10000px;top:0;width:794px;background:#ffffff;color:#0f172a;padding:24px;box-sizing:border-box;z-index:-1;";
+          sandboxHost.innerHTML = reportHtml;
+          document.body.appendChild(sandboxHost);
+
+          await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+          const contentW = 794;
+          const contentH = Math.max(400, Math.ceil(sandboxHost.scrollHeight));
+          const serializedHtml = new XMLSerializer().serializeToString(sandboxHost);
+          document.body.removeChild(sandboxHost);
+
+          const svgMarkup = `<svg xmlns="http://www.w3.org/2000/svg" width="${contentW}" height="${contentH}"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" style="width:${contentW}px;background:#ffffff;font-family:sans-serif;">${serializedHtml}</div></foreignObject></svg>`;
+          const svgBlob = new Blob([svgMarkup], { type: "image/svg+xml;charset=utf-8" });
+          const svgUrl = URL.createObjectURL(svgBlob);
+
+          const img = new Image();
+          await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = reject;
+            img.src = svgUrl;
+          });
+
+          const scale = 2;
+          const pageCanvasH = Math.round((contentW * (841.89 / 595.28)) * scale);
+          const totalScaledH = contentH * scale;
+          const totalPages = Math.max(1, Math.ceil(totalScaledH / pageCanvasH));
+          const jpegPages = [];
+
+          for (let p = 0; p < totalPages; p++) {
+            const sliceH = Math.min(pageCanvasH, totalScaledH - p * pageCanvasH);
+            const pageCanvas = document.createElement("canvas");
+            pageCanvas.width = contentW * scale;
+            pageCanvas.height = pageCanvasH;
+            const pCtx = pageCanvas.getContext("2d");
+            pCtx.fillStyle = "#ffffff";
+            pCtx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+            pCtx.drawImage(
+              img,
+              0,
+              (p * pageCanvasH) / scale,
+              contentW,
+              sliceH / scale,
+              0,
+              0,
+              contentW * scale,
+              sliceH
+            );
+            const dataUrl = pageCanvas.toDataURL("image/jpeg", 0.92);
+            const b64 = dataUrl.split(",")[1] || "";
+            const binStr = atob(b64);
+            const bytes = new Uint8Array(binStr.length);
+            for (let i = 0; i < binStr.length; i++) bytes[i] = binStr.charCodeAt(i);
+            jpegPages.push({ width: pageCanvas.width, height: pageCanvas.height, bytes });
+          }
+
+          URL.revokeObjectURL(svgUrl);
+          const pdfBlob = buildSimplePdfFromJpegPages(jpegPages);
+
+          if (window.MSAppNativeBridge && typeof window.MSAppNativeBridge.saveAndOpenPdfFile === "function") {
+            await window.MSAppNativeBridge.saveAndOpenPdfFile(fileName, pdfBlob);
+          } else {
+            const url = URL.createObjectURL(pdfBlob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 4000);
+            showToast(`PDF generated: ${fileName}`);
+          }
+          return;
+        } catch (pdfErr) {
+          // Fallback to print container if foreignObject rasterization is blocked
+          let printDiv = document.getElementById(containerId);
+          if (!printDiv) {
+            printDiv = document.createElement("div");
+            printDiv.id = containerId;
+            document.body.appendChild(printDiv);
+          }
+          printDiv.innerHTML = reportHtml;
+          printDiv.style.display = "block";
+          document.body.classList.add(bodyPrintClass);
+          const cleanupPrint = () => {
+            document.body.classList.remove(bodyPrintClass);
+            printDiv.style.display = "none";
+            window.removeEventListener("afterprint", cleanupPrint);
+          };
+          window.addEventListener("afterprint", cleanupPrint);
+          window.print();
+          setTimeout(cleanupPrint, 1200);
+        }
+      }
+
       let pendingConfirmResolve = null;
       function requestConfirmation(messageText, titleText) {
         return new Promise((resolve) => {
@@ -5458,6 +5692,44 @@
         return detector.detect(scannerRoiCanvas);
       }
 
+      let pendingCameraStreamPromise = null;
+
+      function prewarmCameraStream() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return null;
+        if (scannerStream && scannerStream.active) {
+          return Promise.resolve(scannerStream);
+        }
+        if (!pendingCameraStreamPromise) {
+          pendingCameraStreamPromise = navigator.mediaDevices
+            .getUserMedia({
+              video: {
+                facingMode: { ideal: "environment" },
+                width: { ideal: 960 },
+                height: { ideal: 540 }
+              },
+              audio: false
+            })
+            .then((stream) => {
+              pendingCameraStreamPromise = null;
+              return stream;
+            })
+            .catch((err) => {
+              pendingCameraStreamPromise = null;
+              throw err;
+            });
+        }
+        return pendingCameraStreamPromise;
+      }
+
+      // Pre-warm camera immediately on pointerdown/touchstart so camera frames appear with zero black delay
+      document.addEventListener("pointerdown", (ev) => {
+        const scanTrigger = ev.target && ev.target.closest("#searchScanBtn, #addScanBtn, #warrantyScanCodeBtn, #saleProductScanBtn");
+        if (scanTrigger) {
+          unlockScannerBeepAudio();
+          prewarmCameraStream()?.catch(() => {});
+        }
+      }, true);
+
       async function openScannerModal(mode) {
         unlockScannerBeepAudio();
         scanTargetMode = mode;
@@ -5482,18 +5754,11 @@
         }
 
         try {
-          if (scannerStream) {
-            stopCameraScanner();
+          const stream = await prewarmCameraStream();
+          scannerStream = stream;
+          if (scannerVideo.srcObject !== stream) {
+            scannerVideo.srcObject = stream;
           }
-          scannerStream = await navigator.mediaDevices.getUserMedia({
-            video: {
-              facingMode: { ideal: "environment" },
-              width: { ideal: 1280 },
-              height: { ideal: 720 }
-            },
-            audio: false
-          });
-          scannerVideo.srcObject = scannerStream;
           scannerVideo.play().catch(() => {});
 
           if ("BarcodeDetector" in window) {
@@ -8961,27 +9226,7 @@
             summaryParts.push(`Date: ${damageFromDate ? formatDisplayDate(damageFromDate) : "Start"} to ${damageToDate ? formatDisplayDate(damageToDate) : "Today"}`);
           }
           const summaryText = summaryParts.length > 0 ? summaryParts.join(" · ") : "All Damaged Products";
-
-          // Reuse a single #damageReportPrintContainer without duplicating
-          let printDiv = document.getElementById("damageReportPrintContainer");
-          if (!printDiv) {
-            printDiv = document.createElement("div");
-            printDiv.id = "damageReportPrintContainer";
-            document.body.appendChild(printDiv);
-          }
-          printDiv.style.display = "none";
-          printDiv.innerHTML = buildDamageReportPdfHtml(filteredDamage, summaryText);
-          printDiv.style.display = "block";
-          document.body.classList.add("printing-damage");
-
-          const cleanupPrint = () => {
-            document.body.classList.remove("printing-damage");
-            printDiv.style.display = "none";
-            window.removeEventListener("afterprint", cleanupPrint);
-          };
-          window.addEventListener("afterprint", cleanupPrint);
-          window.print();
-          setTimeout(cleanupPrint, 1200);
+          exportReportAsA4Pdf(`Damage_Report_${getTodayIsoDate()}.pdf`, buildDamageReportPdfHtml(filteredDamage, summaryText), "printing-damage", "damageReportPrintContainer");
         });
       }
 
@@ -9377,26 +9622,7 @@
           }
           if (ledgerPaymentFilter !== "ALL") parts.push(`Payment: ${ledgerPaymentFilter}`);
           const subtitle = parts.length > 0 ? parts.join(" · ") : "All Customer Transactions";
-
-          let printDiv = document.getElementById("ledgerReportPrintContainer");
-          if (!printDiv) {
-            printDiv = document.createElement("div");
-            printDiv.id = "ledgerReportPrintContainer";
-            document.body.appendChild(printDiv);
-          }
-          printDiv.style.display = "none";
-          printDiv.innerHTML = buildCustomerLedgerPdfHtml(filteredLedger, subtitle);
-          printDiv.style.display = "block";
-          document.body.classList.add("printing-ledger");
-
-          const cleanupPrint = () => {
-            document.body.classList.remove("printing-ledger");
-            printDiv.style.display = "none";
-            window.removeEventListener("afterprint", cleanupPrint);
-          };
-          window.addEventListener("afterprint", cleanupPrint);
-          window.print();
-          setTimeout(cleanupPrint, 1200);
+          exportReportAsA4Pdf(`Customer_Ledger_${getTodayIsoDate()}.pdf`, buildCustomerLedgerPdfHtml(filteredLedger, subtitle), "printing-ledger", "ledgerReportPrintContainer");
         });
       }
 
@@ -9907,26 +10133,7 @@
         const rangeText = dailySaleFromDate === dailySaleToDate && dailySaleFromDate
           ? formatDisplayDate(dailySaleFromDate)
           : `${dailySaleFromDate ? formatDisplayDate(dailySaleFromDate) : "Start"} to ${dailySaleToDate ? formatDisplayDate(dailySaleToDate) : "Today"}`;
-
-        let printDiv = document.getElementById("dailySaleReportPrintContainer");
-        if (!printDiv) {
-          printDiv = document.createElement("div");
-          printDiv.id = "dailySaleReportPrintContainer";
-          printDiv.style.display = "none";
-          document.body.appendChild(printDiv);
-        }
-        printDiv.innerHTML = buildDailySaleA4PdfHtml(entries, rangeText);
-        printDiv.style.display = "block";
-        document.body.classList.add("printing-daily-sale");
-
-        const cleanupPrint = () => {
-          document.body.classList.remove("printing-daily-sale");
-          printDiv.style.display = "none";
-          window.removeEventListener("afterprint", cleanupPrint);
-        };
-        window.addEventListener("afterprint", cleanupPrint);
-        window.print();
-        setTimeout(cleanupPrint, 1200);
+        exportReportAsA4Pdf(`Daily_Sale_Report_${getTodayIsoDate()}.pdf`, buildDailySaleA4PdfHtml(entries, rangeText), "printing-daily-sale", "dailySaleReportPrintContainer");
       });
 
       function renderTotalProductValueFullPage() {
@@ -10611,26 +10818,7 @@
         const catLabel = tpvCategoryFilter === "ALL" ? "All Categories" : tpvCategoryFilter;
         const summaryParts = [stockLabel, catLabel];
         if (rawQ) summaryParts.push(`Search: ${rawQ}`);
-
-        let printDiv = document.getElementById("tpvReportPrintContainer");
-        if (!printDiv) {
-          printDiv = document.createElement("div");
-          printDiv.id = "tpvReportPrintContainer";
-          printDiv.style.display = "none";
-          document.body.appendChild(printDiv);
-        }
-        printDiv.innerHTML = buildTpvA4PdfHtml(filteredForPdf, summaryParts.join(" · "));
-        printDiv.style.display = "block";
-        document.body.classList.add("printing-tpv");
-
-        const cleanupPrint = () => {
-          document.body.classList.remove("printing-tpv");
-          printDiv.style.display = "none";
-          window.removeEventListener("afterprint", cleanupPrint);
-        };
-        window.addEventListener("afterprint", cleanupPrint);
-        window.print();
-        setTimeout(cleanupPrint, 1200);
+        exportReportAsA4Pdf(`Product_Value_Report_${getTodayIsoDate()}.pdf`, buildTpvA4PdfHtml(filteredForPdf, summaryParts.join(" · ")), "printing-tpv", "tpvReportPrintContainer");
       });
 
 
@@ -11529,6 +11717,37 @@
         syncPlusButtonModalState();
       }
 
+      function stripBillPrefixOnly(billNoVal) {
+        return String(billNoVal || "").trim().replace(/^BILL-?/i, "");
+      }
+
+      function getBillPayableQrAmount(billRecord) {
+        const totalAmount =
+          billRecord.totalAmount !== undefined
+            ? Number(billRecord.totalAmount) || 0
+            : (billRecord.items || []).reduce((sum, it) => sum + (Number(it.unitPrice) || 0) * (Number(it.qty) || 1), 0);
+        const paidAmount = billRecord.paidAmount !== undefined ? Number(billRecord.paidAmount) || 0 : totalAmount;
+        const dueAmount = billRecord.dueAmount !== undefined ? Number(billRecord.dueAmount) || 0 : Math.max(0, totalAmount - paidAmount);
+        return Math.max(0, Math.round(dueAmount > 0 ? dueAmount : totalAmount));
+      }
+
+      function buildPaymentQrPayload(billRecord) {
+        const amt = getBillPayableQrAmount(billRecord);
+        const upiId = String(state.paymentQrUpiId || "").trim();
+        const plainBill = stripBillPrefixOnly(billRecord.billNo || "");
+        if (upiId) {
+          const params = new URLSearchParams({
+            pa: upiId,
+            pn: "MS ADVANCED MOBICARE",
+            tn: `Bill ${plainBill || ""}`.trim(),
+            cu: "INR"
+          });
+          if (amt > 0) params.set("am", String(amt));
+          return `upi://pay?${params.toString()}`;
+        }
+        return `MS ADVANCED MOBICARE|BILL:${plainBill}|AMT:${amt}`;
+      }
+
       function buildThermal2InchBillHtml(billRecord) {
         const totalAmount =
           billRecord.totalAmount !== undefined
@@ -11536,44 +11755,87 @@
             : (billRecord.items || []).reduce((sum, it) => sum + (Number(it.unitPrice) || 0) * (Number(it.qty) || 1), 0);
         const paidAmount = billRecord.paidAmount !== undefined ? Number(billRecord.paidAmount) || 0 : totalAmount;
         const dueAmount = billRecord.dueAmount !== undefined ? Number(billRecord.dueAmount) || 0 : Math.max(0, totalAmount - paidAmount);
-        const discAmt = Number(billRecord.discountAmount) || 0;
-        const payMode = billRecord.paymentMode || "Online";
+        const plainBillNo = stripBillPrefixOnly(billRecord.billNo || "");
+        const dateText = billRecord.dateDisplay || billRecord.dateStr || getDisplayDateFromEntry(billRecord) || "";
+        const timeText = getEntryTimeDisplay(billRecord);
+        const itemsArr = Array.isArray(billRecord.items) ? billRecord.items : [];
+        const totalItemsCount = itemsArr.length;
+        const totalQtyCount = itemsArr.reduce((s, it) => s + (Number(it.qty) || 1), 0);
+        const qrAmt = getBillPayableQrAmount(billRecord);
+        const qrPayload = buildPaymentQrPayload(billRecord);
+        const qrSvgHtml = renderQrSvg(qrPayload, 76);
+        const tcList = Array.isArray(state.termsAndConditions) ? state.termsAndConditions : [];
 
-        const itemsLines = (billRecord.items || [])
+        const itemRowsHtml = itemsArr
           .map((it) => {
-            const lineAmt = (Number(it.unitPrice) || 0) * (Number(it.qty) || 1);
+            const qty = Number(it.qty) || 1;
+            const rate = Math.round(Number(it.unitPrice) || 0);
+            const amt = rate * qty;
             return `
-              <div style="border-bottom:1px dashed #94a3b8;padding:3px 0;">
-                <div style="font-weight:800;word-break:break-word;">${escapeHtml(it.name)}</div>
-                <div style="display:flex;justify-content:space-between;font-size:9.5px;">
-                  <span>${it.qty} x ${formatWholeCurrency(it.unitPrice || 0)}</span>
-                  <strong>${formatWholeCurrency(lineAmt)}</strong>
-                </div>
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:2px;padding:3px 0;border-bottom:1px dotted #94a3b8;font-size:9.5px;line-height:1.25;">
+                <span style="flex:1.5;min-width:0;font-weight:800;word-break:break-word;">${escapeHtml(it.name || "")}</span>
+                <span style="flex:0.5;text-align:center;font-weight:700;white-space:nowrap;">${qty}</span>
+                <span style="flex:0.8;text-align:right;font-weight:700;white-space:nowrap;">${rate}</span>
+                <span style="flex:0.9;text-align:right;font-weight:900;white-space:nowrap;">${amt}</span>
               </div>
             `;
           })
           .join("");
 
+        const tcHtml = tcList.length > 0
+          ? `<div style="border-top:1px dashed #000;margin-top:5px;padding-top:4px;font-size:8.5px;line-height:1.35;">
+               <div style="font-weight:900;margin-bottom:2px;">Terms &amp; Conditions:</div>
+               ${tcList.map((t, idx) => `<div>${idx + 1}. ${escapeHtml(t)}</div>`).join("")}
+             </div>`
+          : "";
+
         return `
-          <div class="thermal-2in-sheet">
-            <div style="text-align:center;border-bottom:1px dashed #000;padding-bottom:4px;margin-bottom:4px;">
-              <div style="font-size:12px;font-weight:900;">MS ADVANCED MOBICARE</div>
-              <div style="font-size:8.5px;">KharddaSinga, Swarupnagar, N24PGS</div>
-              <div style="font-size:8.5px;">Ph: 9123360970 / 8013011282</div>
+          <div class="thermal-2in-sheet" style="width:100%;max-width:100%;padding:4px 2px;">
+            <div style="text-align:center;padding-bottom:4px;">
+              <div style="font-size:15px;font-weight:900;letter-spacing:-0.02em;line-height:1.15;width:100%;">MS ADVANCED MOBICARE</div>
+              <div style="font-size:9px;font-weight:700;margin-top:2px;white-space:nowrap;">KharddaSinga, Swarupnagar</div>
+              <div style="font-size:9px;font-weight:700;white-space:nowrap;">North 24 Parganas, 743286</div>
+              <div style="font-size:9px;font-weight:800;white-space:nowrap;">9123360970 / 8013011282</div>
             </div>
-            <div style="font-size:9px;margin-bottom:4px;">
-              <div><strong>Bill:</strong> ${escapeHtml(billRecord.billNo || "")}</div>
-              <div><strong>Date:</strong> ${escapeHtml(billRecord.dateDisplay || "")}</div>
-              <div><strong>Cust:</strong> ${escapeHtml(billRecord.customerName || "")} (${escapeHtml(billRecord.mobile || "")})</div>
+            <div style="border-top:1px dashed #000;border-bottom:1px dashed #000;padding:4px 0;font-size:9.5px;line-height:1.35;">
+              <div><strong>Bill:</strong> ${escapeHtml(plainBillNo)}</div>
+              <div><strong>Date:</strong> ${escapeHtml(dateText)}</div>
+              <div><strong>Time:</strong> ${escapeHtml(timeText)}</div>
+              <div style="word-break:break-word;"><strong>${escapeHtml(billRecord.customerName || "")}</strong> (${escapeHtml(billRecord.mobile || "")})</div>
             </div>
-            <div style="border-top:1px dashed #000;margin-bottom:4px;">${itemsLines}</div>
-            <div style="font-size:9.5px;display:flex;flex-direction:column;gap:2px;">
-              ${discAmt > 0 ? `<div style="display:flex;justify-content:space-between;"><span>Discount:</span><span>-${formatWholeCurrency(discAmt)}</span></div>` : ""}
-              <div style="display:flex;justify-content:space-between;font-weight:900;font-size:10.5px;"><span>TOTAL:</span><span>${formatWholeCurrency(totalAmount)}</span></div>
-              <div style="display:flex;justify-content:space-between;"><span>Paid (${escapeHtml(payMode)}):</span><span>${formatWholeCurrency(paidAmount)}</span></div>
-              <div style="display:flex;justify-content:space-between;font-weight:900;"><span>DUE:</span><span>${formatWholeCurrency(dueAmount)}</span></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:2px;padding:4px 0;border-bottom:1px solid #000;font-size:9.5px;font-weight:900;">
+              <span style="flex:1.5;min-width:0;">Item</span>
+              <span style="flex:0.5;text-align:center;white-space:nowrap;">Qty</span>
+              <span style="flex:0.8;text-align:right;white-space:nowrap;">Rate</span>
+              <span style="flex:0.9;text-align:right;white-space:nowrap;">Amt</span>
             </div>
-            <div style="text-align:center;border-top:1px dashed #000;margin-top:5px;padding-top:4px;font-size:8.5px;">Thank You!</div>
+            <div>${itemRowsHtml}</div>
+            <div style="padding:4px 0;font-size:9.5px;display:flex;flex-direction:column;gap:2px;">
+              <div style="display:flex;justify-content:space-between;font-weight:800;">
+                <span>Total Items: ${totalItemsCount}</span>
+                <span>Total Qty: ${totalQtyCount}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-weight:900;font-size:10.5px;">
+                <span>TOTAL:</span>
+                <span>${formatWholeCurrency(totalAmount)}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-weight:800;">
+                <span>PAID:</span>
+                <span>${formatWholeCurrency(paidAmount)}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-weight:900;font-size:10.5px;">
+                <span>DUE:</span>
+                <span>${formatWholeCurrency(dueAmount)}</span>
+              </div>
+            </div>
+            <div style="text-align:center;border-top:1px dashed #000;padding-top:4px;">
+              <div style="font-size:10px;font-weight:900;">Thank You!</div>
+              <div style="display:inline-flex;flex-direction:column;align-items:center;margin-top:4px;padding:4px;border:1px solid #cbd5e1;border-radius:6px;background:#ffffff;">
+                ${qrSvgHtml}
+                <span style="font-size:8.5px;font-weight:900;margin-top:2px;">Pay ${formatWholeCurrency(qrAmt)}</span>
+              </div>
+            </div>
+            ${tcHtml}
           </div>
         `;
       }
@@ -11597,15 +11859,26 @@
         const ALIGN_CENTER = ESC + "a" + "\x01";
         const BOLD_ON = ESC + "E" + "\x01";
         const BOLD_OFF = ESC + "E" + "\x00";
+        const DOUBLE_SIZE = GS + "!" + "\x11";
+        const NORMAL_SIZE = GS + "!" + "\x00";
         const FEED_CUT = "\n\n\n\n" + GS + "V" + "\x41" + "\x03";
 
         const lineWidth = 32;
-        const dashLine = "-".repeat(lineWidth) + "\n";
+        const dashLine = ".".repeat(lineWidth) + "\n";
         const padLR = (leftStr, rightStr) => {
           const l = String(leftStr || "");
           const r = String(rightStr || "");
           const spaces = Math.max(1, lineWidth - l.length - r.length);
           return l + " ".repeat(spaces) + r + "\n";
+        };
+        const formatItemLine4Col = (nameStr, qtyVal, priceVal, amtVal) => {
+          const qStr = String(qtyVal);
+          const pStr = String(priceVal);
+          const aStr = String(amtVal);
+          const rightCols = `${qStr.padStart(3, " ")} ${pStr.padStart(5, " ")} ${aStr.padStart(6, " ")}`;
+          const maxNameLen = Math.max(8, lineWidth - rightCols.length - 1);
+          const nStr = String(nameStr || "").slice(0, maxNameLen).padEnd(maxNameLen, " ");
+          return `${nStr} ${rightCols}\n`;
         };
 
         const totalAmount =
@@ -11614,37 +11887,63 @@
             : (billRecord.items || []).reduce((sum, it) => sum + (Number(it.unitPrice) || 0) * (Number(it.qty) || 1), 0);
         const paidAmount = billRecord.paidAmount !== undefined ? Number(billRecord.paidAmount) || 0 : totalAmount;
         const dueAmount = billRecord.dueAmount !== undefined ? Number(billRecord.dueAmount) || 0 : Math.max(0, totalAmount - paidAmount);
-        const discAmt = Number(billRecord.discountAmount) || 0;
-        const payMode = billRecord.paymentMode || "Online";
+        const plainBillNo = stripBillPrefixOnly(billRecord.billNo || "");
+        const dateText = billRecord.dateDisplay || billRecord.dateStr || getDisplayDateFromEntry(billRecord) || "";
+        const timeText = getEntryTimeDisplay(billRecord);
+        const itemsArr = Array.isArray(billRecord.items) ? billRecord.items : [];
+        const totalItemsCount = itemsArr.length;
+        const totalQtyCount = itemsArr.reduce((s, it) => s + (Number(it.qty) || 1), 0);
+        const qrPayload = buildPaymentQrPayload(billRecord);
+        const tcList = Array.isArray(state.termsAndConditions) ? state.termsAndConditions : [];
 
         let out = "";
-        out += INIT + ALIGN_CENTER + BOLD_ON;
+        out += INIT + ALIGN_CENTER + BOLD_ON + DOUBLE_SIZE;
         out += "MS ADVANCED MOBICARE\n";
-        out += BOLD_OFF;
-        out += "KharddaSinga, Swarupnagar, N24PGS\n";
-        out += "Ph: 9123360970 / 8013011282\n";
+        out += NORMAL_SIZE + BOLD_OFF;
+        out += "KharddaSinga, Swarupnagar\n";
+        out += "North 24 Parganas, 743286\n";
+        out += "9123360970 / 8013011282\n";
         out += ALIGN_LEFT + dashLine;
-        out += `Bill: ${billRecord.billNo || ""}\n`;
-        out += `Date: ${billRecord.dateDisplay || ""}\n`;
-        out += `Cust: ${billRecord.customerName || ""} (${billRecord.mobile || ""})\n`;
+        out += `Bill: ${plainBillNo}\n`;
+        out += `Date: ${dateText}\n`;
+        out += `Time: ${timeText}\n`;
+        out += `${billRecord.customerName || ""} (${billRecord.mobile || ""})\n`;
         out += dashLine;
+        out += BOLD_ON + "Item           Qty  Rate    Amt\n" + BOLD_OFF;
 
-        (billRecord.items || []).forEach((it) => {
+        itemsArr.forEach((it) => {
           const qty = Number(it.qty) || 1;
           const rate = Math.round(Number(it.unitPrice) || 0);
           const amt = rate * qty;
-          out += BOLD_ON + String(it.name || "") + BOLD_OFF + "\n";
-          out += padLR(`${qty} x Rs.${rate}`, `Rs.${amt}`);
+          out += formatItemLine4Col(it.name || "", qty, rate, amt);
         });
 
         out += dashLine;
-        if (discAmt > 0) {
-          out += padLR("Discount:", `-Rs.${Math.round(discAmt)}`);
-        }
+        out += padLR(`Total Items: ${totalItemsCount}`, `Total Qty: ${totalQtyCount}`);
         out += BOLD_ON + padLR("TOTAL:", `Rs.${Math.round(totalAmount)}`) + BOLD_OFF;
-        out += padLR(`Paid (${payMode}):`, `Rs.${Math.round(paidAmount)}`);
+        out += padLR("PAID:", `Rs.${Math.round(paidAmount)}`);
         out += BOLD_ON + padLR("DUE:", `Rs.${Math.round(dueAmount)}`) + BOLD_OFF;
-        out += dashLine + ALIGN_CENTER + "Thank You!" + FEED_CUT;
+        out += dashLine + ALIGN_CENTER + BOLD_ON + "Thank You!\n" + BOLD_OFF;
+
+        // Native ESC/POS QR code command (model 2, size 4, error correction M)
+        const qrBytes = qrPayload.length + 3;
+        const pL = String.fromCharCode(qrBytes & 0xff);
+        const pH = String.fromCharCode((qrBytes >> 8) & 0xff);
+        out += GS + "(k" + "\x04\x00\x31\x41\x32\x00";
+        out += GS + "(k" + "\x03\x00\x31\x43\x04";
+        out += GS + "(k" + "\x03\x00\x31\x45\x31";
+        out += GS + "(k" + pL + pH + "\x31\x50\x30" + qrPayload;
+        out += GS + "(k" + "\x03\x00\x31\x51\x30";
+        out += "\n";
+
+        if (tcList.length > 0) {
+          out += ALIGN_LEFT + "Terms & Conditions:\n";
+          tcList.forEach((t, idx) => {
+            out += `${idx + 1}. ${String(t || "")}\n`;
+          });
+        }
+
+        out += FEED_CUT;
         return out;
       }
 
@@ -14044,8 +14343,82 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
         if (!document.hidden) syncAppStatusBarColor();
       });
 
+      let lastHardwareBackPressMs = 0;
+
+      function handleHardwareBackButton(e) {
+        if (e && typeof e.preventDefault === "function") e.preventDefault();
+
+        // 1. Close topmost open modal or fullpage overlay if any is open
+        const openModals = Array.from(document.querySelectorAll(".modal-backdrop.open"));
+        if (openModals.length > 0) {
+          const topModal = openModals[openModals.length - 1];
+          const closeBtn = topModal.querySelector(".modal-close, [id^='close'], [id^='cancel']");
+          if (closeBtn) {
+            closeBtn.click();
+          } else {
+            topModal.classList.remove("open");
+          }
+          return;
+        }
+
+        const openFullPages = Array.from(document.querySelectorAll(".fullpage-overlay.open"));
+        if (openFullPages.length > 0) {
+          const topPage = openFullPages[openFullPages.length - 1];
+          const backBtn = topPage.querySelector("[id^='close']");
+          if (backBtn) {
+            backBtn.click();
+          } else {
+            topPage.classList.remove("open");
+          }
+          return;
+        }
+
+        // 2. Close left drawer if open
+        const drawerEl = document.getElementById("leftDrawer");
+        if (drawerEl && drawerEl.classList.contains("open")) {
+          const backdropEl = document.getElementById("drawerBackdrop");
+          if (backdropEl) backdropEl.click();
+          return;
+        }
+
+        // 3. If inside opened category companies view, go back to categories list
+        const catCompView = document.getElementById("categoryCompaniesView");
+        if (catCompView && catCompView.style.display !== "none") {
+          const backCatBtn = document.getElementById("backToCategoriesListBtn");
+          if (backCatBtn) {
+            backCatBtn.click();
+            return;
+          }
+        }
+
+        // 4. If not on Home tab, switch to Home tab first
+        const activeNav = document.querySelector(".nav-btn.active");
+        if (activeNav && activeNav.getAttribute("data-tab") !== "home") {
+          const homeNavBtn = document.querySelector('.nav-btn[data-tab="home"]');
+          if (homeNavBtn) {
+            homeNavBtn.click();
+            return;
+          }
+        }
+
+        // 5. On Home screen: require pressing Back twice within 2 seconds to exit the app
+        const now = Date.now();
+        if (now - lastHardwareBackPressMs < 2000) {
+          if (navigator.app && typeof navigator.app.exitApp === "function") {
+            navigator.app.exitApp();
+          }
+        } else {
+          lastHardwareBackPressMs = now;
+          showBridgeToast("Press back again to exit");
+        }
+      }
+
+      document.addEventListener("backbutton", handleHardwareBackButton, false);
+
       document.addEventListener("deviceready", async () => {
         syncAppStatusBarColor();
+        document.removeEventListener("backbutton", handleHardwareBackButton, false);
+        document.addEventListener("backbutton", handleHardwareBackButton, false);
         await requestAllAndroidPermissions();
         if (window.MSAppNativeBridge.connectedMac && window.bluetoothSerial) {
           connectBluetoothPrinterNative(
