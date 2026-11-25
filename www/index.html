@@ -2727,7 +2727,19 @@
         </div>
         <div>
           <label for="fbLoginPassword" class="field-label no-wrap">Password</label>
-          <input type="password" id="fbLoginPassword" class="text-input" placeholder="Enter password..." autocomplete="current-password" required />
+          <div style="position:relative;display:flex;align-items:center;">
+            <input type="password" id="fbLoginPassword" class="text-input" style="padding-right:42px;" placeholder="Enter password..." autocomplete="current-password" required />
+            <button type="button" id="toggleLoginPasswordEyeBtn" aria-label="Show or hide login password" style="position:absolute;right:8px;background:none;border:none;color:#475569;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:4px;">
+              <svg id="loginEyeIconOpen" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              <svg id="loginEyeIconClosed" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+              </svg>
+            </button>
+          </div>
         </div>
         <div id="fbLoginErrorMsg" style="color:#e11d48;font-size:12.5px;font-weight:700;min-height:18px;"></div>
         <button type="submit" class="btn-primary no-wrap" style="width:100%;padding:11px 14px;font-size:14px;">Login</button>
@@ -5193,88 +5205,56 @@
         };
         const startObj = (num) => {
           offsets[num] = offset;
-          pushStr(`${num} 0 obj
-`);
+          pushStr(`${num} 0 obj\n`);
         };
 
-        pushStr("%PDF-1.4
-");
+        pushStr("%PDF-1.4\n");
         const pageCount = jpegPages.length;
-        // 1: Catalog, 2: Pages, then per page i: Page (3+3i), Contents (4+3i), Image XObject (5+3i)
         startObj(1);
-        pushStr("<< /Type /Catalog /Pages 2 0 R >>
-endobj
-");
+        pushStr("<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
 
         const kidsRefs = [];
         for (let i = 0; i < pageCount; i++) kidsRefs.push(`${3 + i * 3} 0 R`);
         startObj(2);
-        pushStr(`<< /Type /Pages /Kids [ ${kidsRefs.join(" ")} ] /Count ${pageCount} >>
-endobj
-`);
+        pushStr(`<< /Type /Pages /Kids [ ${kidsRefs.join(" ")} ] /Count ${pageCount} >>\nendobj\n`);
 
         for (let i = 0; i < pageCount; i++) {
           const pg = jpegPages[i];
           const pageObj = 3 + i * 3;
           const contObj = 4 + i * 3;
           const imgObj = 5 + i * 3;
-          // A4 portrait in PDF points: 595.28 x 841.89
           const pdfW = 595.28;
           const pdfH = 841.89;
           const drawH = Math.min(pdfH, (pg.height / pg.width) * pdfW);
           const yPos = pdfH - drawH;
-          const contentStream = `q
-${pdfW.toFixed(2)} 0 0 ${drawH.toFixed(2)} 0 ${yPos.toFixed(2)} cm
-/Im${i} Do
-Q
-`;
+          const contentStream = `q\n${pdfW.toFixed(2)} 0 0 ${drawH.toFixed(2)} 0 ${yPos.toFixed(2)} cm\n/Im${i} Do\nQ\n`;
 
           startObj(pageObj);
-          pushStr(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pdfW} ${pdfH}] /Resources << /XObject << /Im${i} ${imgObj} 0 R >> >> /Contents ${contObj} 0 R >>
-endobj
-`);
+          pushStr(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pdfW} ${pdfH}] /Resources << /XObject << /Im${i} ${imgObj} 0 R >> >> /Contents ${contObj} 0 R >>\nendobj\n`);
 
           startObj(contObj);
-          pushStr(`<< /Length ${contentStream.length} >>
-stream
-${contentStream}endstream
-endobj
-`);
+          pushStr(`<< /Length ${contentStream.length} >>\nstream\n${contentStream}endstream\nendobj\n`);
 
           startObj(imgObj);
-          pushStr(`<< /Type /XObject /Subtype /Image /Width ${pg.width} /Height ${pg.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${pg.bytes.length} >>
-stream
-`);
+          pushStr(`<< /Type /XObject /Subtype /Image /Width ${pg.width} /Height ${pg.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${pg.bytes.length} >>\nstream\n`);
           pushBytes(pg.bytes);
-          pushStr("
-endstream
-endobj
-");
+          pushStr("\nendstream\nendobj\n");
         }
 
         const xrefStart = offset;
         const totalObjs = 2 + pageCount * 3;
-        pushStr(`xref
-0 ${totalObjs + 1}
-`);
-        pushStr("0000000000 65535 f 
-");
+        pushStr(`xref\n0 ${totalObjs + 1}\n`);
+        pushStr("0000000000 65535 f \n");
         for (let n = 1; n <= totalObjs; n++) {
-          pushStr(String(offsets[n] || 0).padStart(10, "0") + " 00000 n 
-");
+          pushStr(String(offsets[n] || 0).padStart(10, "0") + " 00000 n \n");
         }
-        pushStr(`trailer
-<< /Size ${totalObjs + 1} /Root 1 0 R >>
-startxref
-${xrefStart}
-%%EOF`);
+        pushStr(`trailer\n<< /Size ${totalObjs + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`);
         return new Blob(chunks, { type: "application/pdf" });
       }
 
       async function exportReportAsA4Pdf(fileName, reportHtml, bodyPrintClass, containerId) {
         showToast("Generating A4 PDF Report...");
         try {
-          // Render HTML inside an offscreen A4-proportioned container (794px wide) and rasterize via SVG foreignObject -> Canvas -> A4 PDF
           const sandboxHost = document.createElement("div");
           sandboxHost.style.cssText = "position:fixed;left:-10000px;top:0;width:794px;background:#ffffff;color:#0f172a;padding:24px;box-sizing:border-box;z-index:-1;";
           sandboxHost.innerHTML = reportHtml;
@@ -5348,7 +5328,6 @@ ${xrefStart}
           }
           return;
         } catch (pdfErr) {
-          // Fallback to print container if foreignObject rasterization is blocked
           let printDiv = document.getElementById(containerId);
           if (!printDiv) {
             printDiv = document.createElement("div");
@@ -13795,6 +13774,17 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
         const loginForm = document.getElementById("firebaseLoginForm");
         const loginEmailEl = document.getElementById("fbLoginEmail");
         const loginPassEl = document.getElementById("fbLoginPassword");
+        const toggleLoginEyeBtn = document.getElementById("toggleLoginPasswordEyeBtn");
+        const loginEyeOpen = document.getElementById("loginEyeIconOpen");
+        const loginEyeClosed = document.getElementById("loginEyeIconClosed");
+        if (toggleLoginEyeBtn && loginPassEl) {
+          toggleLoginEyeBtn.addEventListener("click", () => {
+            const isHidden = loginPassEl.type === "password";
+            loginPassEl.type = isHidden ? "text" : "password";
+            if (loginEyeOpen) loginEyeOpen.style.display = isHidden ? "none" : "inline";
+            if (loginEyeClosed) loginEyeClosed.style.display = isHidden ? "inline" : "none";
+          });
+        }
         const loginErrEl = document.getElementById("fbLoginErrorMsg");
         const settingsLogoutBtn = document.getElementById("settingsLogoutBtn");
         const activeUserBadge = document.getElementById("activeFirebaseUserBadge");
