@@ -2728,7 +2728,7 @@
         <div>
           <label for="fbLoginPassword" class="field-label no-wrap">Password</label>
           <div style="position:relative;display:flex;align-items:center;">
-            <input type="password" id="fbLoginPassword" class="text-input" style="padding-right:42px;" placeholder="Enter password..." autocomplete="current-password" required />
+            <input type="password" id="fbLoginPassword" class="text-input" style="padding-right:42px;text-transform:none;" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Enter password..." autocomplete="current-password" required />
             <button type="button" id="toggleLoginPasswordEyeBtn" aria-label="Show or hide login password" style="position:absolute;right:8px;background:none;border:none;color:#475569;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:4px;">
               <svg id="loginEyeIconOpen" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
@@ -3439,7 +3439,7 @@
       <form id="backdatePwdForm" class="modal-body">
         <div>
           <label for="backdatePwdVerifyInput" class="field-label no-wrap">Password *</label>
-          <input type="password" id="backdatePwdVerifyInput" class="text-input" placeholder="Enter your saved password..." autocomplete="off" required />
+          <input type="password" id="backdatePwdVerifyInput" class="text-input" style="text-transform:none;" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Enter your saved password..." autocomplete="off" required />
         </div>
       </form>
       <div class="modal-footer">
@@ -3526,7 +3526,7 @@
         <div>
           <label for="appSecurityPasswordInput" class="field-label no-wrap">Password (Leave blank for no password)</label>
           <div style="position:relative;display:flex;align-items:center;">
-            <input type="password" id="appSecurityPasswordInput" class="text-input" style="padding-right:42px;" placeholder="Enter password or leave blank..." autocomplete="off" />
+            <input type="password" id="appSecurityPasswordInput" class="text-input" style="padding-right:42px;text-transform:none;" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Enter password or leave blank..." autocomplete="off" />
             <button type="button" id="togglePasswordEyeBtn" aria-label="Show or hide password" style="position:absolute;right:8px;background:none;border:none;color:#475569;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:4px;">
               <svg id="eyeIconOpen" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
@@ -5015,10 +5015,21 @@
       // Global ALL CAPS enforcement across all text inputs & textareas (with Pro, Plus, Note exception on Product Name fields)
       const PRODUCT_NAME_FIELD_IDS = new Set(["prodName", "orderProductNameInput"]);
 
+      const PASSWORD_OR_CASE_SENSITIVE_IDS = new Set([
+        "fbLoginPassword",
+        "fbLoginEmail",
+        "appSecurityPasswordInput",
+        "backdatePwdVerifyInput",
+        "paymentQrUpiInput",
+        "backupGmailIdInput"
+      ]);
+
       function enforceGlobalCapsOnField(el, forceCommit) {
         if (!el) return;
+        if (PASSWORD_OR_CASE_SENSITIVE_IDS.has(el.id)) return;
         if (el.tagName === "INPUT") {
           const t = (el.getAttribute("type") || "text").toLowerCase();
+          if (t === "password" || t === "email") return;
           if (t !== "text" && t !== "search") return;
         } else if (el.tagName !== "TEXTAREA") {
           return;
