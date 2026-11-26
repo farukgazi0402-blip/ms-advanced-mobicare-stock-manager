@@ -5,31 +5,87 @@
     <author email="support@example.com" href="">Faruk Gazi</author>
     <content src="index.html" />
     <access origin="*" />
+    <allow-navigation href="*" />
     <allow-intent href="http://*/*" />
     <allow-intent href="https://*/*" />
+    <allow-intent href="file://*/*" />
     <allow-intent href="content://*/*" />
     <allow-intent href="intent:*" />
     <allow-intent href="whatsapp:*" />
     <allow-intent href="com.google.android.apps.docs:*" />
 
-    <preference name="SplashScreenDelay" value="1500" />
+    <preference name="SplashScreen" value="screen" />
+    <preference name="SplashScreenDelay" value="2000" />
     <preference name="AutoHideSplashScreen" value="true" />
     <preference name="SplashMaintainAspectRatio" value="true" />
     <preference name="FadeSplashScreen" value="true" />
     <preference name="FadeSplashScreenDuration" value="300" />
+    <preference name="ShowSplashScreenSpinner" value="false" />
     <preference name="AndroidWindowSplashScreenAnimatedIcon" value="splash.png" />
     <preference name="AndroidWindowSplashScreenBackground" value="#ffffff" />
+    <preference name="BackgroundColor" value="0xFFFFFFFF" />
+    <preference name="AndroidPersistentFileLocation" value="Compatibility" />
+    <preference name="AndroidExtraFilesystems" value="files,files-external,documents,sdcard,cache,cache-external,assets,root" />
+    <preference name="AndroidInsecureFileModeEnabled" value="true" />
+    <preference name="AllowInlineMediaPlayback" value="true" />
 
     <platform name="android">
         <allow-intent href="market:*" />
         <icon src="icon.png" />
-        <splash src="splash.png" />
         <preference name="android-minSdkVersion" value="24" />
         <preference name="android-targetSdkVersion" value="34" />
+        <preference name="android-compileSdkVersion" value="34" />
+        <preference name="StatusBarOverlaysWebView" value="false" />
+        <preference name="StatusBarBackgroundColor" value="#ffffff" />
+        <preference name="StatusBarStyle" value="default" />
+
+        <config-file target="AndroidManifest.xml" parent="/manifest">
+            <!-- Camera & QR/Barcode Scanner -->
+            <uses-permission android:name="android.permission.CAMERA" />
+            <uses-feature android:name="android.hardware.camera" android:required="false" />
+            <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+
+            <!-- Android 13+ Media Permission & Bluetooth -->
+            <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+            <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
+            <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+            <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
+        </config-file>
+
+        <config-file target="AndroidManifest.xml" parent="/manifest/queries">
+            <intent>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" android:mimeType="application/pdf" />
+            </intent>
+            <intent>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/pdf" />
+            </intent>
+            <intent>
+                <action android:name="android.intent.action.SEND" />
+                <data android:mimeType="application/pdf" />
+            </intent>
+            <intent>
+                <action android:name="android.intent.action.SEND" />
+                <data android:mimeType="image/*" />
+            </intent>
+            <package android:name="com.whatsapp" />
+            <package android:name="com.whatsapp.w4b" />
+            <package android:name="com.google.android.apps.docs" />
+            <package android:name="com.adobe.reader" />
+        </config-file>
+
+        <resource-file src="res/drawable/logo.png" target="app/src/main/res/drawable/logo.png" />
+        <resource-file src="res/drawable/splash_mixed_bg.xml" target="app/src/main/res/drawable/splash_mixed_bg.xml" />
+        <resource-file src="res/anim/drop_from_top_above_center.xml" target="app/src/main/res/anim/drop_from_top_above_center.xml" />
+        <resource-file src="res/layout/splash_screen.xml" target="app/src/main/res/layout/splash_screen.xml" />
     </platform>
 
     <!-- PDF, File & Sharing -->
-    <plugin name="cordova-plugin-file" spec="^8.1.0" />
+    <plugin name="cordova-plugin-file" spec="^8.0.0" />
     <plugin name="cordova-plugin-file-opener2" spec="^4.0.0" />
     <plugin name="cordova-plugin-x-socialsharing" spec="^6.0.4" />
 
@@ -37,5 +93,7 @@
     <plugin name="cordova-plugin-android-permissions" />
     <plugin name="cordova-plugin-mlkit-barcode-scanner" />
     <plugin name="cordova-plugin-bluetooth-serial" />
+
+    <!-- StatusBar Color -->
     <plugin name="cordova-plugin-statusbar" />
 </widget>
