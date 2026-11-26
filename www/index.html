@@ -14358,6 +14358,27 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
       }
 
       // Save and open generated PDF files via Cordova File + FileOpener2 (Google Drive / System PDF Viewer)
+      function waitForCordovaReady(timeoutMs) {
+        return new Promise((resolve) => {
+          if (window.cordova && window.resolveLocalFileSystemURL && window.cordova.file) {
+            resolve(true);
+            return;
+          }
+          let done = false;
+          const finish = (ok) => {
+            if (done) return;
+            done = true;
+            document.removeEventListener("deviceready", onReady, false);
+            resolve(ok);
+          };
+          const onReady = () => finish(true);
+          document.addEventListener("deviceready", onReady, false);
+          setTimeout(() => {
+            finish(Boolean(window.cordova && window.resolveLocalFileSystemURL && window.cordova.file));
+          }, timeoutMs || 1800);
+        });
+      }
+
       async function saveAndOpenPdfFile(fileName, pdfBlobOrArrayBuffer) {
         const cleanName = String(fileName || "Report.pdf").replace(/[^a-zA-Z0-9._-]/g, "_");
         const finalName = cleanName.toLowerCase().endsWith(".pdf") ? cleanName : cleanName + ".pdf";
@@ -14380,7 +14401,8 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
           } catch (e) {}
         };
 
-        if (!window.cordova || !window.resolveLocalFileSystemURL || !window.cordova.file) {
+        const isCordovaAvailable = await waitForCordovaReady(1800);
+        if (!isCordovaAvailable) {
           triggerBrowserDownload();
           showBridgeToast("PDF ready: " + finalName);
           return finalName;
@@ -14395,9 +14417,9 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
           : "";
 
         const candidateDirs = [
-          publicDownloadDir,
           window.cordova.file.externalDataDirectory,
           window.cordova.file.externalCacheDirectory,
+          publicDownloadDir,
           window.cordova.file.cacheDirectory,
           window.cordova.file.dataDirectory
         ].filter(Boolean);
@@ -14437,6 +14459,7 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
         };
 
         const arrayBuf = await blob.arrayBuffer();
+        const uint8Bytes = new Uint8Array(arrayBuf);
 
         const tryWriteToDir = (dirPath) =>
           new Promise((resolve, reject) => {
@@ -14452,9 +14475,13 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
                         fileWriter.onwriteend = () => resolve(fileEntry.toURL());
                         fileWriter.onerror = (e) => reject(e);
                         try {
-                          fileWriter.write(new Blob([arrayBuf], { type: "application/pdf" }));
+                          fileWriter.write(uint8Bytes.buffer);
                         } catch (wErr) {
-                          reject(wErr);
+                          try {
+                            fileWriter.write(new Blob([uint8Bytes], { type: "application/pdf" }));
+                          } catch (bErr) {
+                            reject(bErr);
+                          }
                         }
                       },
                       (cErr) => reject(cErr)
@@ -14476,8 +14503,19 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
           } catch (dirErr) {}
         }
 
+        // Direct SocialSharing base64 PDF fallback if filesystem write is restricted
+        if (window.plugins && window.plugins.socialsharing && window.plugins.socialsharing.share) {
+          try {
+            let bin = "";
+            for (let i = 0; i < uint8Bytes.length; i++) bin += String.fromCharCode(uint8Bytes[i]);
+            const dataUri = "data:application/pdf;base64," + btoa(bin);
+            window.plugins.socialsharing.share(null, finalName, dataUri, null);
+            return finalName;
+          } catch (sErr) {}
+        }
+
         triggerBrowserDownload();
-        showBridgeToast("PDF generated: " + finalName);
+        showBridgeToast("PDF ready: " + finalName);
         return finalName;
       }
 
