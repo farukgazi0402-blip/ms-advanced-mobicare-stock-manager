@@ -89,6 +89,9 @@ jobs:
           if [ ! -f "www/index.html" ] && [ -f "www/index (1)_2.html" ]; then
             cp "www/index (1)_2.html" www/index.html
           fi
+          if [ ! -f "www/index.html" ] && [ -f "www/index (1)_3.html" ]; then
+            cp "www/index (1)_3.html" www/index.html
+          fi
           if [ ! -f "www/index.html" ] && [ -f "www/index_2.html" ]; then
             cp "www/index_2.html" www/index.html
           fi
@@ -153,6 +156,9 @@ jobs:
           if [ ! -f "cordova_app/www/index.html" ] && [ -f "cordova_app/www/index (1)_2.html" ]; then
             cp "cordova_app/www/index (1)_2.html" cordova_app/www/index.html
           fi
+          if [ ! -f "cordova_app/www/index.html" ] && [ -f "cordova_app/www/index (1)_3.html" ]; then
+            cp "cordova_app/www/index (1)_3.html" cordova_app/www/index.html
+          fi
           if [ ! -f "cordova_app/www/index.html" ] && [ -f "cordova_app/www/index_2.html" ]; then
             cp "cordova_app/www/index_2.html" cordova_app/www/index.html
           fi
@@ -167,155 +173,155 @@ jobs:
           cordova plugin add cordova-plugin-bluetooth-serial --no-telemetry || true
           cordova plugin add cordova-plugin-statusbar --no-telemetry || true
 
-          python3 - << 'PYEOF'
-import xml.etree.ElementTree as ET
+          cat << 'PYEOF' > patch_app.py
+          import os
+          import xml.etree.ElementTree as ET
 
-cfg_path = "config.xml"
-ET.register_namespace("", "http://www.w3.org/ns/widgets")
-ET.register_namespace("android", "http://schemas.android.com/apk/res/android")
-ET.register_namespace("cdv", "http://cordova.apache.org/ns/1.0")
-tree = ET.parse(cfg_path)
-root = tree.getroot()
-ns = {"w": "http://www.w3.org/ns/widgets", "android": "http://schemas.android.com/apk/res/android"}
+          cfg_path = "config.xml"
+          if os.path.exists(cfg_path):
+              ET.register_namespace("", "http://www.w3.org/ns/widgets")
+              ET.register_namespace("android", "http://schemas.android.com/apk/res/android")
+              ET.register_namespace("cdv", "http://cordova.apache.org/ns/1.0")
+              tree = ET.parse(cfg_path)
+              root = tree.getroot()
+              ns = {"w": "http://www.w3.org/ns/widgets", "android": "http://schemas.android.com/apk/res/android"}
 
-existing_intents = {el.attrib.get("href") for el in root.findall("w:allow-intent", ns)}
-for href_val in ["tel:*", "telprompt:*", "sms:*", "mailto:*"]:
-    if href_val not in existing_intents:
-        sub = ET.SubElement(root, "{http://www.w3.org/ns/widgets}allow-intent")
-        sub.set("href", href_val)
+              existing_intents = {el.attrib.get("href") for el in root.findall("w:allow-intent", ns)}
+              for href_val in ["tel:*", "telprompt:*", "sms:*", "mailto:*"]:
+                  if href_val not in existing_intents:
+                      sub = ET.SubElement(root, "{http://www.w3.org/ns/widgets}allow-intent")
+                      sub.set("href", href_val)
 
-for plat in root.findall("w:platform[@name='android']", ns):
-    has_dial_query = False
-    for q_cfg in plat.findall("w:config-file[@target='AndroidManifest.xml'][@parent='/manifest/queries']", ns):
-        for intent_el in q_cfg.findall("intent"):
-            act = intent_el.find("action")
-            if act is not None and act.attrib.get("{http://schemas.android.com/apk/res/android}name") == "android.intent.action.DIAL":
-                has_dial_query = True
-    if not has_dial_query:
-        q_target = plat.find("w:config-file[@target='AndroidManifest.xml'][@parent='/manifest/queries']", ns)
-        if q_target is None:
-            q_target = ET.SubElement(plat, "{http://www.w3.org/ns/widgets}config-file")
-            q_target.set("target", "AndroidManifest.xml")
-            q_target.set("parent", "/manifest/queries")
-        dial_intent = ET.SubElement(q_target, "intent")
-        act_el = ET.SubElement(dial_intent, "action")
-        act_el.set("{http://schemas.android.com/apk/res/android}name", "android.intent.action.DIAL")
-        data_el = ET.SubElement(dial_intent, "data")
-        data_el.set("scheme", "tel")
+              for plat in root.findall("w:platform[@name='android']", ns):
+                  has_dial_query = False
+                  for q_cfg in plat.findall("w:config-file[@target='AndroidManifest.xml'][@parent='/manifest/queries']", ns):
+                      for intent_el in q_cfg.findall("intent"):
+                          act = intent_el.find("action")
+                          if act is not None and act.attrib.get("{http://schemas.android.com/apk/res/android}name") == "android.intent.action.DIAL":
+                              has_dial_query = True
+                  if not has_dial_query:
+                      q_target = plat.find("w:config-file[@target='AndroidManifest.xml'][@parent='/manifest/queries']", ns)
+                      if q_target is None:
+                          q_target = ET.SubElement(plat, "{http://www.w3.org/ns/widgets}config-file")
+                          q_target.set("target", "AndroidManifest.xml")
+                          q_target.set("parent", "/manifest/queries")
+                      dial_intent = ET.SubElement(q_target, "intent")
+                      act_el = ET.SubElement(dial_intent, "action")
+                      act_el.set("{http://schemas.android.com/apk/res/android}name", "android.intent.action.DIAL")
+                      data_el = ET.SubElement(dial_intent, "data")
+                      data_el.set("scheme", "tel")
 
-tree.write(cfg_path, encoding="utf-8", xml_declaration=True)
-PYEOF
+              tree.write(cfg_path, encoding="utf-8", xml_declaration=True)
 
-          python3 - << 'PYEOF'
-import os
+          idx_path = "www/index.html"
+          if os.path.exists(idx_path):
+              with open(idx_path, "r", encoding="utf-8", errors="ignore") as f:
+                  html = f.read()
 
-idx_path = "www/index.html"
-if os.path.exists(idx_path):
-    with open(idx_path, "r", encoding="utf-8", errors="ignore") as f:
-        html = f.read()
+              if "cordova.js" not in html and "</head>" in html:
+                  html = html.replace("</head>", '  <script src="cordova.js"></script>\n</head>', 1)
 
-    if "cordova.js" not in html and "</head>" in html:
-        html = html.replace("</head>", '  <script src="cordova.js"></script>\n</head>', 1)
+              bridge_marker = "/* CORDOVA_PDF_AND_TEL_BRIDGE_V1 */"
+              bridge_code = (
+                  "\n<script>\n" + bridge_marker + "\n"
+                  "(function() {\n"
+                  "  function dialPhoneInApp(rawTel) {\n"
+                  "    var cleaned = String(rawTel || '').replace(/[^0-9+]/g, '').trim();\n"
+                  "    if (!cleaned) return false;\n"
+                  "    var telUrl = 'tel:' + cleaned;\n"
+                  "    try { window.location.href = telUrl; return true; } catch (e) {}\n"
+                  "    return false;\n"
+                  "  }\n"
+                  "  document.addEventListener('click', function(ev) {\n"
+                  "    var anchor = ev.target && ev.target.closest ? ev.target.closest('a[href^=\"tel:\"]') : null;\n"
+                  "    if (!anchor) return;\n"
+                  "    var hrefVal = anchor.getAttribute('href') || '';\n"
+                  "    if (window.cordova) {\n"
+                  "      ev.preventDefault();\n"
+                  "      dialPhoneInApp(hrefVal.replace(/^tel:/i, ''));\n"
+                  "    }\n"
+                  "  }, true);\n"
+                  "  function saveBlobToCordovaDir(dirEntry, fileName, pdfBlob) {\n"
+                  "    return new Promise(function(resolve, reject) {\n"
+                  "      if (!dirEntry || typeof dirEntry.getFile !== 'function') { reject(new Error('Invalid dir')); return; }\n"
+                  "      dirEntry.getFile(fileName, { create: true, exclusive: false }, function(fileEntry) {\n"
+                  "        fileEntry.createWriter(function(fileWriter) {\n"
+                  "          fileWriter.onwriteend = function() { resolve(fileEntry); };\n"
+                  "          fileWriter.onerror = function(err) { reject(err || new Error('Write failed')); };\n"
+                  "          fileWriter.write(pdfBlob);\n"
+                  "        }, reject);\n"
+                  "      }, reject);\n"
+                  "    });\n"
+                  "  }\n"
+                  "  function openPdfWithCordovaPlugins(fileEntry, fileName) {\n"
+                  "    return new Promise(function(resolve) {\n"
+                  "      var nativeUrl = fileEntry && (fileEntry.toURL ? fileEntry.toURL() : fileEntry.nativeURL);\n"
+                  "      if (!nativeUrl) { resolve(false); return; }\n"
+                  "      if (window.cordova && window.cordova.plugins && window.cordova.plugins.fileOpener2) {\n"
+                  "        window.cordova.plugins.fileOpener2.open(\n"
+                  "          nativeUrl,\n"
+                  "          'application/pdf',\n"
+                  "          {\n"
+                  "            success: function() { resolve(true); },\n"
+                  "            error: function() {\n"
+                  "              if (window.plugins && window.plugins.socialsharing && typeof window.plugins.socialsharing.share === 'function') {\n"
+                  "                window.plugins.socialsharing.share(null, fileName, nativeUrl, null, function() {}, function() {});\n"
+                  "              }\n"
+                  "              resolve(true);\n"
+                  "            }\n"
+                  "          }\n"
+                  "        );\n"
+                  "      } else if (window.plugins && window.plugins.socialsharing && typeof window.plugins.socialsharing.share === 'function') {\n"
+                  "        window.plugins.socialsharing.share(null, fileName, nativeUrl, null, function() {}, function() {});\n"
+                  "        resolve(true);\n"
+                  "      } else {\n"
+                  "        resolve(false);\n"
+                  "      }\n"
+                  "    });\n"
+                  "  }\n"
+                  "  window.MSAppNativeBridge = window.MSAppNativeBridge || {};\n"
+                  "  window.MSAppNativeBridge.saveAndOpenPdfFile = async function(fileName, pdfBlob) {\n"
+                  "    var safeName = String(fileName || 'report.pdf').replace(/[^a-zA-Z0-9._-]/g, '_');\n"
+                  "    if (!safeName.toLowerCase().endsWith('.pdf')) safeName += '.pdf';\n"
+                  "    if (window.cordova && window.cordova.file) {\n"
+                  "      var dirs = [\n"
+                  "        window.cordova.file.externalDataDirectory,\n"
+                  "        window.cordova.file.cacheDirectory,\n"
+                  "        window.cordova.file.dataDirectory\n"
+                  "      ].filter(Boolean);\n"
+                  "      for (var i = 0; i < dirs.length; i++) {\n"
+                  "        try {\n"
+                  "          var dirEntry = await new Promise(function(res, rej) { window.resolveLocalFileSystemURL(dirs[i], res, rej); });\n"
+                  "          var savedEntry = await saveBlobToCordovaDir(dirEntry, safeName, pdfBlob);\n"
+                  "          var opened = await openPdfWithCordovaPlugins(savedEntry, safeName);\n"
+                  "          if (opened) return true;\n"
+                  "        } catch (err) {}\n"
+                  "      }\n"
+                  "    }\n"
+                  "    var url = URL.createObjectURL(pdfBlob);\n"
+                  "    var a = document.createElement('a');\n"
+                  "    a.href = url;\n"
+                  "    a.download = safeName;\n"
+                  "    document.body.appendChild(a);\n"
+                  "    a.click();\n"
+                  "    document.body.removeChild(a);\n"
+                  "    setTimeout(function() { URL.revokeObjectURL(url); }, 4000);\n"
+                  "    return true;\n"
+                  "  };\n"
+                  "})();\n</script>\n"
+              )
 
-    bridge_marker = "/* CORDOVA_PDF_AND_TEL_BRIDGE_V1 */"
-    bridge_code = (
-        "\n<script>\n" + bridge_marker + "\n"
-        "(function() {\n"
-        "  function dialPhoneInApp(rawTel) {\n"
-        "    var cleaned = String(rawTel || '').replace(/[^0-9+]/g, '').trim();\n"
-        "    if (!cleaned) return false;\n"
-        "    var telUrl = 'tel:' + cleaned;\n"
-        "    try { window.location.href = telUrl; return true; } catch (e) {}\n"
-        "    return false;\n"
-        "  }\n"
-        "  document.addEventListener('click', function(ev) {\n"
-        "    var anchor = ev.target && ev.target.closest ? ev.target.closest('a[href^="tel:"]') : null;\n"
-        "    if (!anchor) return;\n"
-        "    var hrefVal = anchor.getAttribute('href') || '';\n"
-        "    if (window.cordova) {\n"
-        "      ev.preventDefault();\n"
-        "      dialPhoneInApp(hrefVal.replace(/^tel:/i, ''));\n"
-        "    }\n"
-        "  }, true);\n"
-        "  function saveBlobToCordovaDir(dirEntry, fileName, pdfBlob) {\n"
-        "    return new Promise(function(resolve, reject) {\n"
-        "      if (!dirEntry || typeof dirEntry.getFile !== 'function') { reject(new Error('Invalid dir')); return; }\n"
-        "      dirEntry.getFile(fileName, { create: true, exclusive: false }, function(fileEntry) {\n"
-        "        fileEntry.createWriter(function(fileWriter) {\n"
-        "          fileWriter.onwriteend = function() { resolve(fileEntry); };\n"
-        "          fileWriter.onerror = function(err) { reject(err || new Error('Write failed')); };\n"
-        "          fileWriter.write(pdfBlob);\n"
-        "        }, reject);\n"
-        "      }, reject);\n"
-        "    });\n"
-        "  }\n"
-        "  function openPdfWithCordovaPlugins(fileEntry, fileName) {\n"
-        "    return new Promise(function(resolve) {\n"
-        "      var nativeUrl = fileEntry && (fileEntry.toURL ? fileEntry.toURL() : fileEntry.nativeURL);\n"
-        "      if (!nativeUrl) { resolve(false); return; }\n"
-        "      if (window.cordova && window.cordova.plugins && window.cordova.plugins.fileOpener2) {\n"
-        "        window.cordova.plugins.fileOpener2.open(\n"
-        "          nativeUrl,\n"
-        "          'application/pdf',\n"
-        "          {\n"
-        "            success: function() { resolve(true); },\n"
-        "            error: function() {\n"
-        "              if (window.plugins && window.plugins.socialsharing && typeof window.plugins.socialsharing.share === 'function') {\n"
-        "                window.plugins.socialsharing.share(null, fileName, nativeUrl, null, function() {}, function() {});\n"
-        "              }\n"
-        "              resolve(true);\n"
-        "            }\n"
-        "          }\n"
-        "        );\n"
-        "      } else if (window.plugins && window.plugins.socialsharing && typeof window.plugins.socialsharing.share === 'function') {\n"
-        "        window.plugins.socialsharing.share(null, fileName, nativeUrl, null, function() {}, function() {});\n"
-        "        resolve(true);\n"
-        "      } else {\n"
-        "        resolve(false);\n"
-        "      }\n"
-        "    });\n"
-        "  }\n"
-        "  window.MSAppNativeBridge = window.MSAppNativeBridge || {};\n"
-        "  window.MSAppNativeBridge.saveAndOpenPdfFile = async function(fileName, pdfBlob) {\n"
-        "    var safeName = String(fileName || 'report.pdf').replace(/[^a-zA-Z0-9._-]/g, '_');\n"
-        "    if (!safeName.toLowerCase().endsWith('.pdf')) safeName += '.pdf';\n"
-        "    if (window.cordova && window.cordova.file) {\n"
-        "      var dirs = [\n"
-        "        window.cordova.file.externalDataDirectory,\n"
-        "        window.cordova.file.cacheDirectory,\n"
-        "        window.cordova.file.dataDirectory\n"
-        "      ].filter(Boolean);\n"
-        "      for (var i = 0; i < dirs.length; i++) {\n"
-        "        try {\n"
-        "          var dirEntry = await new Promise(function(res, rej) { window.resolveLocalFileSystemURL(dirs[i], res, rej); });\n"
-        "          var savedEntry = await saveBlobToCordovaDir(dirEntry, safeName, pdfBlob);\n"
-        "          var opened = await openPdfWithCordovaPlugins(savedEntry, safeName);\n"
-        "          if (opened) return true;\n"
-        "        } catch (err) {}\n"
-        "      }\n"
-        "    }\n"
-        "    var url = URL.createObjectURL(pdfBlob);\n"
-        "    var a = document.createElement('a');\n"
-        "    a.href = url;\n"
-        "    a.download = safeName;\n"
-        "    document.body.appendChild(a);\n"
-        "    a.click();\n"
-        "    document.body.removeChild(a);\n"
-        "    setTimeout(function() { URL.revokeObjectURL(url); }, 4000);\n"
-        "    return true;\n"
-        "  };\n"
-        "})();\n</script>\n"
-    )
+              if bridge_marker not in html:
+                  if "</body>" in html:
+                      html = html.replace("</body>", bridge_code + "\n</body>", 1)
+                  else:
+                      html = html + bridge_code
 
-    if bridge_marker not in html:
-        if "</body>" in html:
-            html = html.replace("</body>", bridge_code + "\n</body>", 1)
-        else:
-            html = html + bridge_code
-
-    with open(idx_path, "w", encoding="utf-8") as f:
-        f.write(html)
-PYEOF
+              with open(idx_path, "w", encoding="utf-8") as f:
+                  f.write(html)
+          PYEOF
+          python3 patch_app.py
+          rm -f patch_app.py
 
           cordova prepare android --no-telemetry
           cordova plugin list
