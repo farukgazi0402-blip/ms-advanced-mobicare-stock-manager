@@ -5198,81 +5198,76 @@
         }, 2400);
       }
 
-      // Build real downloadable/openable multi-page A4 PDF from any HTML report table/layout (works 100% in Android APK WebView + Browser)
-      function buildSimplePdfFromJpegPages(jpegPages) {
-        const enc = new TextEncoder();
-        const chunks = [];
-        let offset = 0;
-        const offsets = [0];
-
-        const pushStr = (s) => {
-          const b = enc.encode(s);
-          chunks.push(b);
-          offset += b.length;
-        };
-        const pushBytes = (b) => {
-          chunks.push(b);
-          offset += b.length;
-        };
-        const startObj = (num) => {
-          offsets[num] = offset;
-          pushStr(`${num} 0 obj\n`);
-        };
-
-        pushStr("%PDF-1.4\n");
-        const pageCount = jpegPages.length;
-        startObj(1);
-        pushStr("<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
-
-        const kidsRefs = [];
-        for (let i = 0; i < pageCount; i++) kidsRefs.push(`${3 + i * 3} 0 R`);
-        startObj(2);
-        pushStr(`<< /Type /Pages /Kids [ ${kidsRefs.join(" ")} ] /Count ${pageCount} >>\nendobj\n`);
-
-        for (let i = 0; i < pageCount; i++) {
-          const pg = jpegPages[i];
-          const pageObj = 3 + i * 3;
-          const contObj = 4 + i * 3;
-          const imgObj = 5 + i * 3;
-          const pdfW = 595.28;
-          const pdfH = 841.89;
-          const drawH = Math.min(pdfH, (pg.height / pg.width) * pdfW);
-          const yPos = pdfH - drawH;
-          const contentStream = `q\n${pdfW.toFixed(2)} 0 0 ${drawH.toFixed(2)} 0 ${yPos.toFixed(2)} cm\n/Im${i} Do\nQ\n`;
-
-          startObj(pageObj);
-          pushStr(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pdfW} ${pdfH}] /Resources << /XObject << /Im${i} ${imgObj} 0 R >> >> /Contents ${contObj} 0 R >>\nendobj\n`);
-
-          startObj(contObj);
-          pushStr(`<< /Length ${contentStream.length} >>\nstream\n${contentStream}endstream\nendobj\n`);
-
-          startObj(imgObj);
-          pushStr(`<< /Type /XObject /Subtype /Image /Width ${pg.width} /Height ${pg.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${pg.bytes.length} >>\nstream\n`);
-          pushBytes(pg.bytes);
-          pushStr("\nendstream\nendobj\n");
-        }
-
-        const xrefStart = offset;
-        const totalObjs = 2 + pageCount * 3;
-        pushStr(`xref\n0 ${totalObjs + 1}\n`);
-        pushStr("0000000000 65535 f \n");
-        for (let n = 1; n <= totalObjs; n++) {
-          pushStr(String(offsets[n] || 0).padStart(10, "0") + " 00000 n \n");
-        }
-        pushStr(`trailer\n<< /Size ${totalObjs + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`);
-        return new Blob(chunks, { type: "application/pdf" });
+      // Build true vector text-based A4 PDF directly from report HTML (crisp at any zoom level, selectable text, no pixelation)
+      function escapePdfText(rawStr) {
+        return String(rawStr ?? "")
+          .replace(/\u20B9/g, "Rs. ")
+          .replace(/\u00B7/g, " - ")
+          .replace(/\u2013/g, "-")
+          .replace(/\u2014/g, "-")
+          .replace(/\u2022/g, "* ")
+          .replace(/[^\x20-\x7E]/g, " ")
+          .replace(/\\/g, "\\\\")
+          .replace(/\(/g, "\\(")
+          .replace(/\)/g, "\\)");
       }
 
-      function renderHtmlReportDirectlyToA4Canvases(reportHtml) {
+      function estimateAsciiTextWidth(str, fontSize, isBold) {
+        const clean = escapePdfText(str);
+        const factor = isBold ? 0.54 : 0.49;
+        return clean.length * fontSize * factor;
+      }
+
+      function wrapVectorPdfLines(text, fontSize, maxWidth, isBold) {
+        const clean = String(text ?? "").replace(/\s+/g, " ").trim();
+        if (!clean) return [""];
+        const words = clean.split(" ");
+        const lines = [];
+        let current = words[0];
+
+        for (let i = 1; i < words.length; i++) {
+          const candidate = current + " " + words[i];
+          if (estimateAsciiTextWidth(candidate, fontSize, isBold) <= maxWidth) {
+            current = candidate;
+          } else {
+            lines.push(current);
+            current = words[i];
+          }
+        }
+        lines.push(current);
+
+        const finalLines = [];
+        lines.forEach((ln) => {
+          if (estimateAsciiTextWidth(ln, fontSize, isBold) <= maxWidth || ln.length <= 2) {
+            finalLines.push(ln);
+          } else {
+            let chunk = "";
+            for (let c = 0; c < ln.length; c++) {
+              const nextChunk = chunk + ln[c];
+              if (estimateAsciiTextWidth(nextChunk, fontSize, isBold) <= maxWidth || chunk.length === 0) {
+                chunk = nextChunk;
+              } else {
+                finalLines.push(chunk);
+                chunk = ln[c];
+              }
+            }
+            if (chunk) finalLines.push(chunk);
+          }
+        });
+        return finalLines.length > 0 ? finalLines : [""];
+      }
+
+      function buildVectorTextPdfBlob(reportHtml) {
         const host = document.createElement("div");
         host.innerHTML = reportHtml;
 
-        // Extract structured header, filter strip, table headers/rows, and footer totals directly from the report DOM
         const h2El = host.querySelector("h2");
         const shopTitle = h2El ? h2El.textContent.trim() : "MS ADVANCED MOBICARE";
         const allDivs = Array.from(host.querySelectorAll("div"));
         const addrDiv = allDivs.find((d) => d.textContent.includes("KharddaSinga") && d.children.length === 0);
-        const shopAddr = addrDiv ? addrDiv.textContent.trim() : "KharddaSinga Badher Mukh Bazar, Near Swarupnagar Bridge, North 24 Parganas, WB · Ph: 9123360970 / 8013011282";
+        const shopAddr = addrDiv
+          ? addrDiv.textContent.trim()
+          : "KharddaSinga Badher Mukh Bazar, Near Swarupnagar Bridge, North 24 Parganas, WB - Ph: 9123360970 / 8013011282";
 
         const titleBadgeDiv = allDivs.find((d) => /REPORT/i.test(d.textContent) && d.children.length === 0);
         const reportTitle = titleBadgeDiv ? titleBadgeDiv.textContent.trim() : "A4 REPORT";
@@ -5280,7 +5275,15 @@
         const printedDiv = allDivs.find((d) => d.textContent.includes("Printed:") && d.children.length === 0);
         const printedLine = printedDiv ? printedDiv.textContent.trim() : `Printed: ${formatDisplayDate(getTodayIsoDate())}`;
 
-        const filterBox = allDivs.find((d) => (d.textContent.includes("Filter:") || d.textContent.includes("Total Bills:") || d.textContent.includes("Period:") || d.textContent.includes("Stock Filter")) && d.querySelectorAll("table").length === 0 && d.textContent.length < 260);
+        const filterBox = allDivs.find(
+          (d) =>
+            (d.textContent.includes("Filter:") ||
+              d.textContent.includes("Total Bills:") ||
+              d.textContent.includes("Period:") ||
+              d.textContent.includes("Stock Filter")) &&
+            d.querySelectorAll("table").length === 0 &&
+            d.textContent.length < 260
+        );
         const filterText = filterBox ? filterBox.textContent.replace(/\s+/g, " ").trim() : "";
 
         const tableEl = host.querySelector("table");
@@ -5294,7 +5297,16 @@
                   .replace(/<br\s*\/?>/gi, "\n")
                   .replace(/<[^>]+>/g, " ")
                   .split("\n")
-                  .map((s) => s.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, " ").trim())
+                  .map((s) =>
+                    s
+                      .replace(/&amp;/g, "&")
+                      .replace(/&lt;/g, "<")
+                      .replace(/&gt;/g, ">")
+                      .replace(/&quot;/g, '"')
+                      .replace(/&#39;/g, "'")
+                      .replace(/\s+/g, " ")
+                      .trim()
+                  )
                   .filter(Boolean);
                 return lines.length > 0 ? lines : [td.textContent.replace(/\s+/g, " ").trim()];
               })
@@ -5302,244 +5314,301 @@
           : [];
 
         const lastDiv = allDivs.length > 0 ? allDivs[allDivs.length - 1] : null;
-        const footerItems = lastDiv && lastDiv.querySelectorAll("span").length > 0
-          ? Array.from(lastDiv.querySelectorAll("span")).map((sp) => sp.textContent.replace(/\s+/g, " ").trim())
-          : [];
+        const footerItems =
+          lastDiv && lastDiv.querySelectorAll("span").length > 0
+            ? Array.from(lastDiv.querySelectorAll("span")).map((sp) => sp.textContent.replace(/\s+/g, " ").trim())
+            : [];
 
-        // A4 Portrait at 150 DPI: 1240 x 1754 px
-        const pageW = 1240;
-        const pageH = 1754;
-        const margin = 56;
-        const innerW = pageW - margin * 2;
-        const pages = [];
+        // Standard A4 Portrait in PDF points (595.28 x 841.89 pt), top-left origin converted to bottom-up PDF coordinates
+        const pageW = 595.28;
+        const pageH = 841.89;
+        const marginX = 32;
+        const marginTop = 34;
+        const marginBottom = 38;
+        const innerW = pageW - marginX * 2;
+        const toPdfY = (topDownY) => (pageH - topDownY).toFixed(2);
 
-        const createNewPageCanvas = (pageNum) => {
-          const c = document.createElement("canvas");
-          c.width = pageW;
-          c.height = pageH;
-          const ctx = c.getContext("2d");
-          ctx.fillStyle = "#ffffff";
-          ctx.fillRect(0, 0, pageW, pageH);
-
-          // Top Header
-          ctx.fillStyle = "#0f172a";
-          ctx.font = "900 28px sans-serif";
-          ctx.textAlign = "left";
-          ctx.fillText(shopTitle, margin, margin + 28);
-
-          ctx.textAlign = "right";
-          ctx.font = "900 22px sans-serif";
-          ctx.fillStyle = "#1e1b4b";
-          ctx.fillText(reportTitle, pageW - margin, margin + 26);
-
-          ctx.font = "600 15px sans-serif";
-          ctx.fillStyle = "#475569";
-          ctx.fillText(`${printedLine}  |  Page ${pageNum}`, pageW - margin, margin + 50);
-
-          ctx.textAlign = "left";
-          ctx.font = "600 15px sans-serif";
-          ctx.fillStyle = "#475569";
-          const addrWrapped = wrapCanvasLines(ctx, shopAddr, innerW - 260);
-          let ay = margin + 52;
-          addrWrapped.forEach((ln) => {
-            ctx.fillText(ln, margin, ay);
-            ay += 20;
-          });
-
-          const divY = Math.max(ay + 8, margin + 74);
-          ctx.strokeStyle = "#0f172a";
-          ctx.lineWidth = 3;
-          ctx.beginPath();
-          ctx.moveTo(margin, divY);
-          ctx.lineTo(pageW - margin, divY);
-          ctx.stroke();
-
-          let curY = divY + 16;
-          if (filterText && pageNum === 1) {
-            ctx.fillStyle = "#eef2ff";
-            ctx.fillRect(margin, curY, innerW, 38);
-            ctx.strokeStyle = "#c7d2fe";
-            ctx.lineWidth = 1.5;
-            ctx.strokeRect(margin, curY, innerW, 38);
-            ctx.fillStyle = "#1e1b4b";
-            ctx.font = "700 15px sans-serif";
-            ctx.fillText(filterText.slice(0, 115), margin + 12, curY + 24);
-            curY += 50;
-          }
-          return { canvas: c, ctx, y: curY };
-        };
-
-        // Compute proportional column widths
         const colCount = Math.max(1, headers.length);
         const colWidths = headers.map((h, idx) => {
           const low = h.toLowerCase();
-          if (low === "#" || idx === 0) return Math.round(innerW * 0.06);
-          if (low.includes("product") || low.includes("item")) return Math.round(innerW * 0.30);
-          if (low.includes("bill") || low.includes("customer")) return Math.round(innerW * 0.21);
-          return Math.floor((innerW * 0.43) / Math.max(1, colCount - 3));
+          if (low === "#" || idx === 0) return innerW * 0.06;
+          if (low.includes("product") || low.includes("item")) return innerW * 0.31;
+          if (low.includes("bill") || low.includes("customer")) return innerW * 0.21;
+          return (innerW * 0.42) / Math.max(1, colCount - 3);
         });
-        const sumW = colWidths.reduce((s, w) => s + w, 0);
+        const widthSum = colWidths.reduce((a, b) => a + b, 0);
         if (colWidths.length > 1) {
-          colWidths[1] += innerW - sumW;
+          colWidths[1] += innerW - widthSum;
         }
 
-        const drawTableHeader = (ctx, y) => {
-          const hHeight = 42;
-          ctx.fillStyle = "#f1f5f9";
-          ctx.fillRect(margin, y, innerW, hHeight);
-          ctx.strokeStyle = "#94a3b8";
-          ctx.lineWidth = 1.5;
-          ctx.strokeRect(margin, y, innerW, hHeight);
+        const pageStreams = [];
+        let curOps = [];
+        let curY = marginTop;
+        let pageNum = 1;
 
-          let x = margin;
-          ctx.fillStyle = "#0f172a";
-          ctx.font = "800 15px sans-serif";
+        const addText = (ops, txt, x, topY, size, isBold, r, g, b, align) => {
+          const escaped = escapePdfText(txt);
+          if (!escaped.trim()) return;
+          const fontKey = isBold ? "/F2" : "/F1";
+          const w = estimateAsciiTextWidth(escaped, size, isBold);
+          let drawX = x;
+          if (align === "right") drawX = x - w;
+          else if (align === "center") drawX = x - w / 2;
+
+          ops.push("BT");
+          ops.push(`${fontKey} ${size} Tf`);
+          ops.push(`${(r ?? 0.06).toFixed(2)} ${(g ?? 0.09).toFixed(2)} ${(b ?? 0.16).toFixed(2)} rg`);
+          ops.push(`${drawX.toFixed(2)} ${toPdfY(topY)} Td`);
+          ops.push(`(${escaped}) Tj`);
+          ops.push("ET");
+        };
+
+        const addLine = (ops, x1, y1, x2, y2, widthPt, r, g, b) => {
+          ops.push("q");
+          ops.push(`${widthPt} w`);
+          ops.push(`${(r ?? 0.1).toFixed(2)} ${(g ?? 0.1).toFixed(2)} ${(b ?? 0.1).toFixed(2)} RG`);
+          ops.push(`${x1.toFixed(2)} ${toPdfY(y1)} m ${x2.toFixed(2)} ${toPdfY(y2)} l S`);
+          ops.push("Q");
+        };
+
+        const addRect = (ops, x, topY, w, h, fillRgb, strokeRgb, strokeWidth) => {
+          ops.push("q");
+          if (fillRgb) {
+            ops.push(`${fillRgb[0].toFixed(2)} ${fillRgb[1].toFixed(2)} ${fillRgb[2].toFixed(2)} rg`);
+          }
+          if (strokeRgb) {
+            ops.push(`${(strokeWidth || 0.8)} w`);
+            ops.push(`${strokeRgb[0].toFixed(2)} ${strokeRgb[1].toFixed(2)} ${strokeRgb[2].toFixed(2)} RG`);
+          }
+          ops.push(`${x.toFixed(2)} ${toPdfY(topY + h)} ${w.toFixed(2)} ${h.toFixed(2)} re`);
+          if (fillRgb && strokeRgb) ops.push("B");
+          else if (fillRgb) ops.push("f");
+          else if (strokeRgb) ops.push("S");
+          ops.push("Q");
+        };
+
+        const drawTableHeaderVector = (ops, yTop) => {
+          const hRow = 24;
+          addRect(ops, marginX, yTop, innerW, hRow, [0.94, 0.96, 0.98], [0.58, 0.64, 0.72], 0.8);
+          let x = marginX;
           headers.forEach((hText, idx) => {
+            const cw = colWidths[idx] || 80;
             if (idx > 0) {
-              ctx.beginPath();
-              ctx.moveTo(x, y);
-              ctx.lineTo(x, y + hHeight);
-              ctx.stroke();
+              addLine(ops, x, yTop, x, yTop + hRow, 0.7, 0.58, 0.64, 0.72);
             }
-            const cw = colWidths[idx] || 100;
             const isCenter = idx === 0 || /qty/i.test(hText);
-            const isRight = /rate|price|amount|total|paid|due|value|disc/i.test(hText) && !/product|item|bill|customer/i.test(hText);
+            const isRight =
+              /rate|price|amount|total|paid|due|value|disc/i.test(hText) &&
+              !/product|item|bill|customer/i.test(hText);
+            const textY = yTop + 16;
             if (isCenter) {
-              ctx.textAlign = "center";
-              ctx.fillText(hText, x + cw / 2, y + 26);
+              addText(ops, hText, x + cw / 2, textY, 9.2, true, 0.06, 0.09, 0.16, "center");
             } else if (isRight) {
-              ctx.textAlign = "right";
-              ctx.fillText(hText, x + cw - 8, y + 26);
+              addText(ops, hText, x + cw - 5, textY, 9.2, true, 0.06, 0.09, 0.16, "right");
             } else {
-              ctx.textAlign = "left";
-              ctx.fillText(hText, x + 8, y + 26);
+              addText(ops, hText, x + 5, textY, 9.2, true, 0.06, 0.09, 0.16, "left");
             }
             x += cw;
           });
-          ctx.textAlign = "left";
-          return y + hHeight;
+          return yTop + hRow;
         };
 
-        let pageNum = 1;
-        let curPage = createNewPageCanvas(pageNum);
-        if (headers.length > 0) {
-          curPage.y = drawTableHeader(curPage.ctx, curPage.y);
-        }
+        const startPage = (pNo) => {
+          const ops = [];
+          addText(ops, shopTitle, marginX, marginTop + 14, 15, true, 0.06, 0.09, 0.16, "left");
+          addText(ops, reportTitle, pageW - marginX, marginTop + 12, 11.5, true, 0.12, 0.11, 0.30, "right");
+          addText(ops, `${printedLine} | Page ${pNo}`, pageW - marginX, marginTop + 26, 8.5, false, 0.28, 0.34, 0.41, "right");
 
-        const maxBottomY = pageH - margin - 75;
-
-        bodyRows.forEach((rowCells, rIdx) => {
-          const { ctx } = curPage;
-          ctx.font = "600 14.5px sans-serif";
-          let maxLines = 1;
-          const wrappedCells = rowCells.map((cellLines, cIdx) => {
-            const cw = (colWidths[cIdx] || 120) - 16;
-            const outLines = [];
-            cellLines.forEach((rawLine) => {
-              wrapCanvasLines(ctx, rawLine, Math.max(30, cw)).forEach((wl) => outLines.push(wl));
-            });
-            if (outLines.length > maxLines) maxLines = outLines.length;
-            return outLines;
+          const addrLines = wrapVectorPdfLines(shopAddr, 8.5, innerW - 155, false);
+          let ay = marginTop + 27;
+          addrLines.forEach((ln) => {
+            addText(ops, ln, marginX, ay, 8.5, false, 0.28, 0.34, 0.41, "left");
+            ay += 11.5;
           });
 
-          const rowH = Math.max(38, maxLines * 20 + 14);
-          if (curPage.y + rowH > maxBottomY) {
-            pages.push(curPage.canvas);
+          const divY = Math.max(ay + 5, marginTop + 44);
+          addLine(ops, marginX, divY, pageW - marginX, divY, 1.5, 0.06, 0.09, 0.16);
+          let nextY = divY + 8;
+
+          if (filterText && pNo === 1) {
+            const fLines = wrapVectorPdfLines(filterText, 8.8, innerW - 14, true);
+            const fBoxH = Math.max(20, fLines.length * 12 + 8);
+            addRect(ops, marginX, nextY, innerW, fBoxH, [0.93, 0.95, 1.0], [0.78, 0.82, 0.99], 0.8);
+            let fy = nextY + 13;
+            fLines.forEach((fl) => {
+              addText(ops, fl, marginX + 7, fy, 8.8, true, 0.12, 0.11, 0.30, "left");
+              fy += 12;
+            });
+            nextY += fBoxH + 8;
+          }
+
+          if (headers.length > 0) {
+            nextY = drawTableHeaderVector(ops, nextY);
+          }
+
+          return { ops, y: nextY };
+        };
+
+        let pageState = startPage(pageNum);
+        curOps = pageState.ops;
+        curY = pageState.y;
+
+        const maxContentY = pageH - marginBottom - 36;
+
+        bodyRows.forEach((rowCells, rIdx) => {
+          const wrappedCells = rowCells.map((cellLines, cIdx) => {
+            const cw = Math.max(24, (colWidths[cIdx] || 70) - 10);
+            const outLines = [];
+            cellLines.forEach((rawLine) => {
+              wrapVectorPdfLines(rawLine, 8.8, cw, false).forEach((wl) => outLines.push(wl));
+            });
+            return outLines.length > 0 ? outLines : [""];
+          });
+
+          const maxLinesInRow = Math.max(1, ...wrappedCells.map((arr) => arr.length));
+          const rowH = Math.max(20, maxLinesInRow * 12.2 + 8);
+
+          if (curY + rowH > maxContentY) {
+            pageStreams.push(curOps.join("\n"));
             pageNum += 1;
-            curPage = createNewPageCanvas(pageNum);
-            if (headers.length > 0) {
-              curPage.y = drawTableHeader(curPage.ctx, curPage.y);
-            }
+            pageState = startPage(pageNum);
+            curOps = pageState.ops;
+            curY = pageState.y;
           }
 
-          const pCtx = curPage.ctx;
-          const y = curPage.y;
           if (rIdx % 2 === 1) {
-            pCtx.fillStyle = "#f8fafc";
-            pCtx.fillRect(margin, y, innerW, rowH);
+            addRect(curOps, marginX, curY, innerW, rowH, [0.97, 0.98, 0.99], null, 0);
           }
-          pCtx.strokeStyle = "#cbd5e1";
-          pCtx.lineWidth = 1.2;
-          pCtx.strokeRect(margin, y, innerW, rowH);
+          addRect(curOps, marginX, curY, innerW, rowH, null, [0.80, 0.84, 0.88], 0.6);
 
-          let x = margin;
+          let x = marginX;
           wrappedCells.forEach((cellLines, cIdx) => {
-            const cw = colWidths[cIdx] || 100;
+            const cw = colWidths[cIdx] || 70;
             if (cIdx > 0) {
-              pCtx.beginPath();
-              pCtx.moveTo(x, y);
-              pCtx.lineTo(x, y + rowH);
-              pCtx.stroke();
+              addLine(curOps, x, curY, x, curY + rowH, 0.6, 0.80, 0.84, 0.88);
             }
             const hLabel = headers[cIdx] || "";
             const isCenter = cIdx === 0 || /qty/i.test(hLabel);
-            const isRight = /rate|price|amount|total|paid|due|value|disc/i.test(hLabel) && !/product|item|bill|customer/i.test(hLabel);
+            const isRight =
+              /rate|price|amount|total|paid|due|value|disc/i.test(hLabel) &&
+              !/product|item|bill|customer/i.test(hLabel);
 
-            let ly = y + 22;
+            let ly = curY + 13.5;
             cellLines.forEach((ln, lIdx) => {
-              pCtx.font = lIdx === 0 ? "700 14.5px sans-serif" : "600 13px sans-serif";
-              pCtx.fillStyle = /due:/i.test(ln) ? "#e11d48" : (/paid/i.test(ln) ? "#059669" : "#0f172a");
+              const isLineBold = lIdx === 0 || isRight || isCenter;
+              let rgb = [0.06, 0.09, 0.16];
+              if (/due:/i.test(ln)) rgb = [0.88, 0.11, 0.28];
+              else if (/paid/i.test(ln)) rgb = [0.02, 0.59, 0.41];
+
               if (isCenter) {
-                pCtx.textAlign = "center";
-                pCtx.fillText(ln, x + cw / 2, ly);
+                addText(curOps, ln, x + cw / 2, ly, 8.8, isLineBold, rgb[0], rgb[1], rgb[2], "center");
               } else if (isRight) {
-                pCtx.textAlign = "right";
-                pCtx.fillText(ln, x + cw - 8, ly);
+                addText(curOps, ln, x + cw - 5, ly, 8.8, isLineBold, rgb[0], rgb[1], rgb[2], "right");
               } else {
-                pCtx.textAlign = "left";
-                pCtx.fillText(ln, x + 8, ly);
+                addText(curOps, ln, x + 5, ly, 8.8, isLineBold, rgb[0], rgb[1], rgb[2], "left");
               }
-              ly += 19;
+              ly += 12.2;
             });
             x += cw;
           });
-          pCtx.textAlign = "left";
-          curPage.y += rowH;
+
+          curY += rowH;
         });
 
-        // Draw Footer Summary Bar
         if (footerItems.length > 0) {
-          if (curPage.y + 60 > pageH - margin) {
-            pages.push(curPage.canvas);
+          if (curY + 34 > pageH - marginBottom) {
+            pageStreams.push(curOps.join("\n"));
             pageNum += 1;
-            curPage = createNewPageCanvas(pageNum);
+            pageState = startPage(pageNum);
+            curOps = pageState.ops;
+            curY = pageState.y;
           }
-          const fy = curPage.y + 14;
-          const fCtx = curPage.ctx;
-          fCtx.strokeStyle = "#0f172a";
-          fCtx.lineWidth = 2.5;
-          fCtx.beginPath();
-          fCtx.moveTo(margin, fy);
-          fCtx.lineTo(pageW - margin, fy);
-          fCtx.stroke();
-
-          fCtx.font = "900 17px sans-serif";
-          fCtx.textAlign = "right";
-          let fx = pageW - margin;
-          [...footerItems].reverse().forEach((txt) => {
-            fCtx.fillStyle = /due/i.test(txt) ? "#e11d48" : (/paid/i.test(txt) ? "#059669" : "#0f172a");
-            fCtx.fillText(txt, fx, fy + 28);
-            fx -= fCtx.measureText(txt).width + 28;
+          const fyLine = curY + 8;
+          addLine(curOps, marginX, fyLine, pageW - marginX, fyLine, 1.4, 0.06, 0.09, 0.16);
+          const fTextY = fyLine + 16;
+          let rightCursor = pageW - marginX;
+          [...footerItems].reverse().forEach((fTxt) => {
+            let rgb = [0.06, 0.09, 0.16];
+            if (/due/i.test(fTxt)) rgb = [0.88, 0.11, 0.28];
+            else if (/paid/i.test(fTxt)) rgb = [0.02, 0.59, 0.41];
+            addText(curOps, fTxt, rightCursor, fTextY, 10.5, true, rgb[0], rgb[1], rgb[2], "right");
+            rightCursor -= estimateAsciiTextWidth(fTxt, 10.5, true) + 18;
           });
-          fCtx.textAlign = "left";
         }
 
-        pages.push(curPage.canvas);
-        return pages.map((cv) => {
-          const dataUrl = cv.toDataURL("image/jpeg", 0.92);
-          const b64 = dataUrl.split(",")[1] || "";
-          const binStr = atob(b64);
-          const bytes = new Uint8Array(binStr.length);
-          for (let i = 0; i < binStr.length; i++) bytes[i] = binStr.charCodeAt(i);
-          return { width: cv.width, height: cv.height, bytes };
-        });
+        pageStreams.push(curOps.join("\n"));
+
+        // Assemble valid PDF 1.4 with standard Type1 Helvetica & Helvetica-Bold fonts
+        const enc = new TextEncoder();
+        const chunks = [];
+        let byteOffset = 0;
+        const offsets = [0];
+
+        const pushStr = (s) => {
+          const b = enc.encode(s);
+          chunks.push(b);
+          byteOffset += b.length;
+        };
+        const startObj = (num) => {
+          offsets[num] = byteOffset;
+          pushStr(`${num} 0 obj\n`);
+        };
+
+        pushStr("%PDF-1.4\n");
+        const numPages = pageStreams.length;
+        // Obj 1: Catalog, Obj 2: Pages, Obj 3: Font F1, Obj 4: Font F2
+        // Then per page i: PageObj = 5 + i*2, ContentObj = 6 + i*2
+        startObj(1);
+        pushStr("<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
+
+        const pageRefs = [];
+        for (let i = 0; i < numPages; i++) {
+          pageRefs.push(`${5 + i * 2} 0 R`);
+        }
+        startObj(2);
+        pushStr(`<< /Type /Pages /Kids [ ${pageRefs.join(" ")} ] /Count ${numPages} >>\nendobj\n`);
+
+        startObj(3);
+        pushStr("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n");
+
+        startObj(4);
+        pushStr("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj\n");
+
+        for (let i = 0; i < numPages; i++) {
+          const streamStr = pageStreams[i];
+          const streamBytes = enc.encode(streamStr);
+          const pObj = 5 + i * 2;
+          const cObj = 6 + i * 2;
+
+          startObj(pObj);
+          pushStr(
+            `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageW.toFixed(2)} ${pageH.toFixed(2)}] ` +
+              `/Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${cObj} 0 R >>\nendobj\n`
+          );
+
+          startObj(cObj);
+          pushStr(`<< /Length ${streamBytes.length} >>\nstream\n`);
+          chunks.push(streamBytes);
+          byteOffset += streamBytes.length;
+          pushStr("\nendstream\nendobj\n");
+        }
+
+        const totalObjs = 4 + numPages * 2;
+        const xrefPos = byteOffset;
+        pushStr(`xref\n0 ${totalObjs + 1}\n`);
+        pushStr("0000000000 65535 f \n");
+        for (let n = 1; n <= totalObjs; n++) {
+          pushStr(String(offsets[n] || 0).padStart(10, "0") + " 00000 n \n");
+        }
+        pushStr(`trailer\n<< /Size ${totalObjs + 1} /Root 1 0 R >>\nstartxref\n${xrefPos}\n%%EOF`);
+
+        return new Blob(chunks, { type: "application/pdf" });
       }
 
       async function exportReportAsA4Pdf(fileName, reportHtml, bodyPrintClass, containerId) {
-        showToast("Generating A4 PDF Report...");
+        showToast("Generating Text A4 PDF Report...");
         try {
-          const jpegPages = renderHtmlReportDirectlyToA4Canvases(reportHtml);
-          const pdfBlob = buildSimplePdfFromJpegPages(jpegPages);
+          const pdfBlob = buildVectorTextPdfBlob(reportHtml);
 
           if (window.MSAppNativeBridge && typeof window.MSAppNativeBridge.saveAndOpenPdfFile === "function") {
             await window.MSAppNativeBridge.saveAndOpenPdfFile(fileName, pdfBlob);
@@ -5557,33 +5626,10 @@
           return;
         } catch (pdfErr) {
           try {
-            const fallbackCanvas = document.createElement("canvas");
-            fallbackCanvas.width = 1240;
-            fallbackCanvas.height = 1754;
-            const fCtx = fallbackCanvas.getContext("2d");
-            fCtx.fillStyle = "#ffffff";
-            fCtx.fillRect(0, 0, fallbackCanvas.width, fallbackCanvas.height);
-            fCtx.fillStyle = "#0f172a";
-            fCtx.font = "900 26px sans-serif";
-            fCtx.fillText("MS ADVANCED MOBICARE", 56, 88);
-            fCtx.font = "600 16px sans-serif";
-            fCtx.fillText(`Report: ${fileName} · Date: ${formatDisplayDate(getTodayIsoDate())}`, 56, 124);
-            const plainText = String(reportHtml || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-            const lines = wrapCanvasLines(fCtx, plainText, 1128);
-            let ty = 170;
-            for (const ln of lines) {
-              if (ty > 1680) break;
-              fCtx.fillText(ln, 56, ty);
-              ty += 24;
-            }
-            const dataUrl = fallbackCanvas.toDataURL("image/jpeg", 0.9);
-            const b64 = dataUrl.split(",")[1] || "";
-            const binStr = atob(b64);
-            const bytes = new Uint8Array(binStr.length);
-            for (let i = 0; i < binStr.length; i++) bytes[i] = binStr.charCodeAt(i);
-            const pdfBlob = buildSimplePdfFromJpegPages([{ width: fallbackCanvas.width, height: fallbackCanvas.height, bytes }]);
+            const plainFallbackHtml = `<div><h2>MS ADVANCED MOBICARE</h2><div>KharddaSinga Badher Mukh Bazar, Near Swarupnagar Bridge, North 24 Parganas, WB - Ph: 9123360970 / 8013011282</div><div>TEXT REPORT</div><div>Printed: ${formatDisplayDate(getTodayIsoDate())}</div><table><thead><tr><th>#</th><th>Details</th></tr></thead><tbody><tr><td>1</td><td>${escapeHtml(String(reportHtml || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim())}</td></tr></tbody></table></div>`;
+            const fallbackBlob = buildVectorTextPdfBlob(plainFallbackHtml);
             if (window.MSAppNativeBridge && typeof window.MSAppNativeBridge.saveAndOpenPdfFile === "function") {
-              await window.MSAppNativeBridge.saveAndOpenPdfFile(fileName, pdfBlob);
+              await window.MSAppNativeBridge.saveAndOpenPdfFile(fileName, fallbackBlob);
               return;
             }
           } catch (fbErr) {}
@@ -14388,133 +14434,137 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
           blob = new Blob([pdfBlobOrArrayBuffer], { type: "application/pdf" });
         }
 
-        const triggerBrowserDownload = () => {
+        const arrayBuf = await blob.arrayBuffer();
+        const uint8Bytes = new Uint8Array(arrayBuf);
+
+        const buildBase64PdfUri = () => {
+          let bin = "";
+          const chunkSize = 8192;
+          for (let i = 0; i < uint8Bytes.length; i += chunkSize) {
+            const sub = uint8Bytes.subarray(i, Math.min(uint8Bytes.length, i + chunkSize));
+            bin += String.fromCharCode.apply(null, sub);
+          }
+          return "data:application/pdf;base64," + btoa(bin);
+        };
+
+        const openPdfBlobUrlInView = () => {
           try {
-            const url = URL.createObjectURL(blob);
+            const blobUrl = URL.createObjectURL(new Blob([uint8Bytes], { type: "application/pdf" }));
             const a = document.createElement("a");
-            a.href = url;
+            a.href = blobUrl;
             a.download = finalName;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
-            setTimeout(() => URL.revokeObjectURL(url), 5000);
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 8000);
           } catch (e) {}
         };
 
-        const isCordovaAvailable = await waitForCordovaReady(1800);
-        if (!isCordovaAvailable) {
-          triggerBrowserDownload();
-          showBridgeToast("PDF ready: " + finalName);
-          return finalName;
-        }
+        const isCordovaAvailable = await waitForCordovaReady(2200);
 
-        try {
-          await requestAllAndroidPermissions();
-        } catch (permErr) {}
-
-        const publicDownloadDir = window.cordova.file.externalRootDirectory
-          ? window.cordova.file.externalRootDirectory.replace(/\/+$/, "") + "/Download"
-          : "";
-
-        const candidateDirs = [
-          window.cordova.file.externalDataDirectory,
-          window.cordova.file.externalCacheDirectory,
-          publicDownloadDir,
-          window.cordova.file.cacheDirectory,
-          window.cordova.file.dataDirectory
-        ].filter(Boolean);
-
-        const openInViewer = (nativeUrl) => {
+        if (isCordovaAvailable) {
           try {
-            if (window.cordova.plugins && window.cordova.plugins.fileOpener2) {
-              window.cordova.plugins.fileOpener2.open(nativeUrl, "application/pdf", {
-                success: () => {},
-                error: () => {
-                  if (typeof window.cordova.plugins.fileOpener2.showOpenWithDialog === "function") {
-                    window.cordova.plugins.fileOpener2.showOpenWithDialog(nativeUrl, "application/pdf", {
-                      error: () => {
-                        if (window.plugins && window.plugins.socialsharing && window.plugins.socialsharing.share) {
-                          window.plugins.socialsharing.share(null, finalName, nativeUrl, null);
-                        } else {
-                          showBridgeToast("PDF saved: " + finalName);
-                        }
-                      }
-                    });
-                  } else if (window.plugins && window.plugins.socialsharing && window.plugins.socialsharing.share) {
-                    window.plugins.socialsharing.share(null, finalName, nativeUrl, null);
-                  } else {
-                    showBridgeToast("PDF saved: " + finalName);
-                  }
-                }
-              });
-              return;
-            }
-          } catch (openErr) {}
+            await requestAllAndroidPermissions();
+          } catch (permErr) {}
 
-          if (window.plugins && window.plugins.socialsharing && window.plugins.socialsharing.share) {
-            window.plugins.socialsharing.share(null, finalName, nativeUrl, null);
-          } else {
-            showBridgeToast("PDF saved: " + finalName);
-          }
-        };
+          const publicDownloadDir = window.cordova.file.externalRootDirectory
+            ? window.cordova.file.externalRootDirectory.replace(/\/+$/, "") + "/Download"
+            : "";
 
-        const arrayBuf = await blob.arrayBuffer();
-        const uint8Bytes = new Uint8Array(arrayBuf);
+          const candidateDirs = [
+            publicDownloadDir,
+            window.cordova.file.externalDataDirectory,
+            window.cordova.file.externalCacheDirectory,
+            window.cordova.file.cacheDirectory,
+            window.cordova.file.dataDirectory
+          ].filter(Boolean);
 
-        const tryWriteToDir = (dirPath) =>
-          new Promise((resolve, reject) => {
-            window.resolveLocalFileSystemURL(
-              dirPath,
-              (dirEntry) => {
-                dirEntry.getFile(
-                  finalName,
-                  { create: true, exclusive: false },
-                  (fileEntry) => {
-                    fileEntry.createWriter(
-                      (fileWriter) => {
-                        fileWriter.onwriteend = () => resolve(fileEntry.toURL());
-                        fileWriter.onerror = (e) => reject(e);
-                        try {
-                          fileWriter.write(uint8Bytes.buffer);
-                        } catch (wErr) {
-                          try {
-                            fileWriter.write(new Blob([uint8Bytes], { type: "application/pdf" }));
-                          } catch (bErr) {
-                            reject(bErr);
+          const openInViewer = (nativeUrl) => {
+            try {
+              if (window.cordova.plugins && window.cordova.plugins.fileOpener2) {
+                window.cordova.plugins.fileOpener2.open(nativeUrl, "application/pdf", {
+                  success: () => {},
+                  error: () => {
+                    if (typeof window.cordova.plugins.fileOpener2.showOpenWithDialog === "function") {
+                      window.cordova.plugins.fileOpener2.showOpenWithDialog(nativeUrl, "application/pdf", {
+                        error: () => {
+                          if (window.plugins && window.plugins.socialsharing && window.plugins.socialsharing.share) {
+                            window.plugins.socialsharing.share(null, finalName, nativeUrl, null);
+                          } else {
+                            showBridgeToast("PDF saved: " + finalName);
                           }
                         }
-                      },
-                      (cErr) => reject(cErr)
-                    );
-                  },
-                  (gErr) => reject(gErr)
-                );
-              },
-              (rErr) => reject(rErr)
-            );
-          });
+                      });
+                    } else if (window.plugins && window.plugins.socialsharing && window.plugins.socialsharing.share) {
+                      window.plugins.socialsharing.share(null, finalName, nativeUrl, null);
+                    } else {
+                      showBridgeToast("PDF saved: " + finalName);
+                    }
+                  }
+                });
+                return;
+              }
+            } catch (openErr) {}
 
-        for (const dirPath of candidateDirs) {
-          try {
-            const nativeUrl = await tryWriteToDir(dirPath);
-            showBridgeToast("Opening PDF: " + finalName);
-            openInViewer(nativeUrl);
-            return nativeUrl;
-          } catch (dirErr) {}
+            if (window.plugins && window.plugins.socialsharing && window.plugins.socialsharing.share) {
+              window.plugins.socialsharing.share(null, finalName, nativeUrl, null);
+            } else {
+              showBridgeToast("PDF saved: " + finalName);
+            }
+          };
+
+          const tryWriteToDir = (dirPath) =>
+            new Promise((resolve, reject) => {
+              window.resolveLocalFileSystemURL(
+                dirPath,
+                (dirEntry) => {
+                  dirEntry.getFile(
+                    finalName,
+                    { create: true, exclusive: false },
+                    (fileEntry) => {
+                      fileEntry.createWriter(
+                        (fileWriter) => {
+                          fileWriter.onwriteend = () => resolve(fileEntry.toURL());
+                          fileWriter.onerror = (e) => reject(e);
+                          try {
+                            fileWriter.write(new Blob([uint8Bytes], { type: "application/pdf" }));
+                          } catch (wErr) {
+                            try {
+                              fileWriter.write(uint8Bytes.buffer);
+                            } catch (bErr) {
+                              reject(bErr);
+                            }
+                          }
+                        },
+                        (cErr) => reject(cErr)
+                      );
+                    },
+                    (gErr) => reject(gErr)
+                  );
+                },
+                (rErr) => reject(rErr)
+              );
+            });
+
+          for (const dirPath of candidateDirs) {
+            try {
+              const nativeUrl = await tryWriteToDir(dirPath);
+              showBridgeToast("Opening PDF: " + finalName);
+              openInViewer(nativeUrl);
+              return nativeUrl;
+            } catch (dirErr) {}
+          }
+
+          if (window.plugins && window.plugins.socialsharing && window.plugins.socialsharing.share) {
+            try {
+              const dataUri = buildBase64PdfUri();
+              window.plugins.socialsharing.share(null, finalName, dataUri, null);
+              return finalName;
+            } catch (sErr) {}
+          }
         }
 
-        // Direct SocialSharing base64 PDF fallback if filesystem write is restricted
-        if (window.plugins && window.plugins.socialsharing && window.plugins.socialsharing.share) {
-          try {
-            let bin = "";
-            for (let i = 0; i < uint8Bytes.length; i++) bin += String.fromCharCode(uint8Bytes[i]);
-            const dataUri = "data:application/pdf;base64," + btoa(bin);
-            window.plugins.socialsharing.share(null, finalName, dataUri, null);
-            return finalName;
-          } catch (sErr) {}
-        }
-
-        triggerBrowserDownload();
+        openPdfBlobUrlInView();
         showBridgeToast("PDF ready: " + finalName);
         return finalName;
       }
