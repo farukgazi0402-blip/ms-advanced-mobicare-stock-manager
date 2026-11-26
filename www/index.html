@@ -12062,7 +12062,7 @@
               <div style="display:inline-flex;flex-direction:column;align-items:center;padding:4px;border:1px solid #cbd5e1;border-radius:6px;background:#ffffff;">
                 ${qrSvgHtml}
               </div>
-              <div style="font-size:10px;font-weight:900;margin-top:4px;">Thank You!</div>
+              <div style="font-size:10px;font-weight:900;margin-top:4px;">Thank You! Visit Again</div>
             </div>
             ${tcHtml}
           </div>
@@ -12178,7 +12178,7 @@
         out += GS + "(k" + "\x03\x00\x31\x45\x31";
         out += GS + "(k" + pL + pH + "\x31\x50\x30" + qrPayload;
         out += GS + "(k" + "\x03\x00\x31\x51\x30";
-        out += "\n" + ALIGN_CENTER + BOLD_ON + "Thank You!\n" + BOLD_OFF;
+        out += "\n" + ALIGN_CENTER + BOLD_ON + "Thank You! Visit Again\n" + BOLD_OFF;
 
         if (tcList.length > 0) {
           out += ALIGN_LEFT + "Terms & Conditions:\n";
@@ -14520,6 +14520,45 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
       }
 
       window.MSAppNativeBridge.saveAndOpenPdfFile = saveAndOpenPdfFile;
+
+      // Reliable Phone Dial Handler for tel: links inside Cordova / Android WebView
+      function triggerPhoneCall(rawMobile) {
+        const cleaned = String(rawMobile || "").replace(/[^0-9+]/g, "").trim();
+        if (!cleaned) return false;
+        const telUri = `tel:${cleaned}`;
+        try {
+          if (window.cordova && window.cordova.InAppBrowser && typeof window.cordova.InAppBrowser.open === "function") {
+            window.cordova.InAppBrowser.open(telUri, "_system");
+            return true;
+          }
+        } catch (e) {}
+        try {
+          const tempLink = document.createElement("a");
+          tempLink.href = telUri;
+          tempLink.setAttribute("target", "_system");
+          document.body.appendChild(tempLink);
+          tempLink.click();
+          document.body.removeChild(tempLink);
+          return true;
+        } catch (e2) {}
+        try {
+          window.location.href = telUri;
+          return true;
+        } catch (e3) {}
+        return false;
+      }
+
+      document.addEventListener("click", (ev) => {
+        const telAnchor = ev.target && ev.target.closest ? ev.target.closest('a[href^="tel:"]') : null;
+        if (!telAnchor) return;
+        const hrefVal = telAnchor.getAttribute("href") || "";
+        const numPart = hrefVal.replace(/^tel:/i, "").trim();
+        if (!numPart) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        triggerPhoneCall(numPart);
+      }, true);
+
 
       // Bluetooth Serial printer scan, connect, and ESC/POS write
       function updatePrinterBadgeUI(connected, labelText) {
