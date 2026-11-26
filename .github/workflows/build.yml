@@ -86,6 +86,12 @@ jobs:
           if [ ! -f "www/index.html" ] && [ -f "www/index (1).html" ]; then
             cp "www/index (1).html" www/index.html
           fi
+          if [ ! -f "www/index.html" ] && [ -f "www/index (1)_2.html" ]; then
+            cp "www/index (1)_2.html" www/index.html
+          fi
+          if [ ! -f "www/index.html" ] && [ -f "www/index_2.html" ]; then
+            cp "www/index_2.html" www/index.html
+          fi
 
           if [ ! -f "res/drawable/logo.png" ]; then
             if [ -f "www/logo.png" ]; then
@@ -144,10 +150,20 @@ jobs:
           if [ ! -f "cordova_app/www/index.html" ] && [ -f "cordova_app/www/index (1).html" ]; then
             cp "cordova_app/www/index (1).html" cordova_app/www/index.html
           fi
+          if [ ! -f "cordova_app/www/index.html" ] && [ -f "cordova_app/www/index (1)_2.html" ]; then
+            cp "cordova_app/www/index (1)_2.html" cordova_app/www/index.html
+          fi
+          if [ ! -f "cordova_app/www/index.html" ] && [ -f "cordova_app/www/index_2.html" ]; then
+            cp "cordova_app/www/index_2.html" cordova_app/www/index.html
+          fi
 
           cd cordova_app
           cordova platform add android@13.0.0 --no-telemetry
+          cordova plugin add cordova-plugin-file@8.0.0 --no-telemetry || true
+          cordova plugin add cordova-plugin-file-opener2@4.0.0 --no-telemetry || true
+          cordova plugin add cordova-plugin-x-socialsharing@6.0.4 --no-telemetry || true
           cordova prepare android --no-telemetry
+          cordova plugin list
 
       - name: Build Debug Android APK
         run: |
