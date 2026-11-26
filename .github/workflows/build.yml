@@ -75,13 +75,16 @@ jobs:
             '</RelativeLayout>' > res/layout/splash_screen.xml
 
           for item in *; do
-            if [ "$item" != "www" ] && [ "$item" != "config.xml" ] && [ "$item" != "res" ] && [ "$item" != "icon.png" ] && [ "$item" != "splash.png" ] && [ "$item" != ".github" ]; then
+            if [ "$item" != "www" ] && [ "$item" != "config.xml" ] && [ "$item" != "res" ] && [ "$item" != "icon.png" ] && [ "$item" != "splash.png" ] && [ "$item" != ".github" ] && [ "$item" != "cordova_app" ]; then
               mv "$item" www/ 2>/dev/null || true
             fi
           done
 
           if [ ! -f "www/index.html" ] && [ -f "index.html" ]; then
             cp index.html www/index.html
+          fi
+          if [ ! -f "www/index.html" ] && [ -f "www/index (1).html" ]; then
+            cp "www/index (1).html" www/index.html
           fi
 
           if [ ! -f "res/drawable/logo.png" ]; then
@@ -138,6 +141,9 @@ jobs:
           fi
           rm -rf cordova_app/www/*
           cp -r www/* cordova_app/www/
+          if [ ! -f "cordova_app/www/index.html" ] && [ -f "cordova_app/www/index (1).html" ]; then
+            cp "cordova_app/www/index (1).html" cordova_app/www/index.html
+          fi
 
           cd cordova_app
           cordova platform add android@13.0.0 --no-telemetry
