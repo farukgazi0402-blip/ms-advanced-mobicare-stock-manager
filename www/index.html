@@ -14403,7 +14403,7 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
         return false;
       }
 
-      // Save and open generated PDF files via Cordova File + FileOpener2 (Google Drive / System PDF Viewer)
+      // Save and open generated PDF files via Cordova File + FileOpener2 (Android 10-15 Scoped Storage & WebView Safe)
       function waitForCordovaReady(timeoutMs) {
         return new Promise((resolve) => {
           if (window.cordova && window.resolveLocalFileSystemURL && window.cordova.file) {
@@ -14421,7 +14421,23 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
           document.addEventListener("deviceready", onReady, false);
           setTimeout(() => {
             finish(Boolean(window.cordova && window.resolveLocalFileSystemURL && window.cordova.file));
-          }, timeoutMs || 1800);
+          }, timeoutMs || 3500);
+        });
+      }
+
+      function blobToArrayBufferCompat(blobOrBuf) {
+        if (blobOrBuf instanceof ArrayBuffer) return Promise.resolve(blobOrBuf);
+        if (ArrayBuffer.isView(blobOrBuf)) {
+          return Promise.resolve(blobOrBuf.buffer.slice(blobOrBuf.byteOffset, blobOrBuf.byteOffset + blobOrBuf.byteLength));
+        }
+        if (blobOrBuf && typeof blobOrBuf.arrayBuffer === "function") {
+          return blobOrBuf.arrayBuffer();
+        }
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(reader.error || new Error("FileReader failed"));
+          reader.readAsArrayBuffer(blobOrBuf);
         });
       }
 
@@ -14434,7 +14450,7 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
           blob = new Blob([pdfBlobOrArrayBuffer], { type: "application/pdf" });
         }
 
-        const arrayBuf = await blob.arrayBuffer();
+        const arrayBuf = await blobToArrayBufferCompat(blob);
         const uint8Bytes = new Uint8Array(arrayBuf);
 
         const buildBase64PdfUri = () => {
@@ -14460,57 +14476,50 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
           } catch (e) {}
         };
 
-        const isCordovaAvailable = await waitForCordovaReady(2200);
+        const isCordovaAvailable = await waitForCordovaReady(3500);
 
         if (isCordovaAvailable) {
-          try {
-            await requestAllAndroidPermissions();
-          } catch (permErr) {}
-
-          const publicDownloadDir = window.cordova.file.externalRootDirectory
-            ? window.cordova.file.externalRootDirectory.replace(/\/+$/, "") + "/Download"
-            : "";
-
+          // Prioritize app-owned externalCacheDirectory / externalDataDirectory / cacheDirectory first
+          // so FileOpener2 FileProvider can ALWAYS share & open the PDF on Android 10-15 without Scoped Storage blocks
           const candidateDirs = [
-            publicDownloadDir,
-            window.cordova.file.externalDataDirectory,
             window.cordova.file.externalCacheDirectory,
+            window.cordova.file.externalDataDirectory,
             window.cordova.file.cacheDirectory,
             window.cordova.file.dataDirectory
           ].filter(Boolean);
 
           const openInViewer = (nativeUrl) => {
-            try {
-              if (window.cordova.plugins && window.cordova.plugins.fileOpener2) {
-                window.cordova.plugins.fileOpener2.open(nativeUrl, "application/pdf", {
-                  success: () => {},
-                  error: () => {
-                    if (typeof window.cordova.plugins.fileOpener2.showOpenWithDialog === "function") {
-                      window.cordova.plugins.fileOpener2.showOpenWithDialog(nativeUrl, "application/pdf", {
-                        error: () => {
-                          if (window.plugins && window.plugins.socialsharing && window.plugins.socialsharing.share) {
-                            window.plugins.socialsharing.share(null, finalName, nativeUrl, null);
-                          } else {
-                            showBridgeToast("PDF saved: " + finalName);
-                          }
-                        }
-                      });
-                    } else if (window.plugins && window.plugins.socialsharing && window.plugins.socialsharing.share) {
-                      window.plugins.socialsharing.share(null, finalName, nativeUrl, null);
-                    } else {
-                      showBridgeToast("PDF saved: " + finalName);
-                    }
-                  }
-                });
-                return;
-              }
-            } catch (openErr) {}
+            return new Promise((resolveOpen) => {
+              const fallbackShare = () => {
+                if (window.plugins && window.plugins.socialsharing && window.plugins.socialsharing.share) {
+                  window.plugins.socialsharing.share(null, finalName, nativeUrl, null);
+                } else {
+                  showBridgeToast("PDF saved: " + finalName);
+                }
+                resolveOpen(true);
+              };
 
-            if (window.plugins && window.plugins.socialsharing && window.plugins.socialsharing.share) {
-              window.plugins.socialsharing.share(null, finalName, nativeUrl, null);
-            } else {
-              showBridgeToast("PDF saved: " + finalName);
-            }
+              try {
+                if (window.cordova.plugins && window.cordova.plugins.fileOpener2) {
+                  window.cordova.plugins.fileOpener2.open(nativeUrl, "application/pdf", {
+                    success: () => resolveOpen(true),
+                    error: () => {
+                      if (typeof window.cordova.plugins.fileOpener2.showOpenWithDialog === "function") {
+                        window.cordova.plugins.fileOpener2.showOpenWithDialog(nativeUrl, "application/pdf", {
+                          success: () => resolveOpen(true),
+                          error: fallbackShare
+                        });
+                      } else {
+                        fallbackShare();
+                      }
+                    }
+                  });
+                  return;
+                }
+              } catch (openErr) {}
+
+              fallbackShare();
+            });
           };
 
           const tryWriteToDir = (dirPath) =>
@@ -14524,15 +14533,19 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
                     (fileEntry) => {
                       fileEntry.createWriter(
                         (fileWriter) => {
-                          fileWriter.onwriteend = () => resolve(fileEntry.toURL());
+                          fileWriter.onwriteend = () => {
+                            const targetUrl = typeof fileEntry.toNativeURL === "function" ? fileEntry.toNativeURL() : fileEntry.toURL();
+                            resolve(targetUrl);
+                          };
                           fileWriter.onerror = (e) => reject(e);
+                          // Write raw ArrayBuffer directly (Cordova FileWriter handles ArrayBuffer reliably across all Android WebViews)
                           try {
-                            fileWriter.write(new Blob([uint8Bytes], { type: "application/pdf" }));
-                          } catch (wErr) {
+                            fileWriter.write(uint8Bytes.buffer);
+                          } catch (bErr) {
                             try {
-                              fileWriter.write(uint8Bytes.buffer);
-                            } catch (bErr) {
-                              reject(bErr);
+                              fileWriter.write(new Blob([uint8Bytes], { type: "application/pdf" }));
+                            } catch (wErr) {
+                              reject(wErr);
                             }
                           }
                         },
@@ -14550,7 +14563,7 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
             try {
               const nativeUrl = await tryWriteToDir(dirPath);
               showBridgeToast("Opening PDF: " + finalName);
-              openInViewer(nativeUrl);
+              await openInViewer(nativeUrl);
               return nativeUrl;
             } catch (dirErr) {}
           }
