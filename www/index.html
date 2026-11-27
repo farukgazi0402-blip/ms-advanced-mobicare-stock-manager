@@ -14479,8 +14479,6 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
         const isCordovaAvailable = await waitForCordovaReady(3500);
 
         if (isCordovaAvailable) {
-          // Prioritize app-owned externalCacheDirectory / externalDataDirectory / cacheDirectory first
-          // so FileOpener2 FileProvider can ALWAYS share & open the PDF on Android 10-15 without Scoped Storage blocks
           const candidateDirs = [
             window.cordova.file.externalCacheDirectory,
             window.cordova.file.externalDataDirectory,
@@ -14538,7 +14536,6 @@ MS ADVANCED MOBICARE full stock & sales backup (${state.lastBackupDateTime}). Fi
                             resolve(targetUrl);
                           };
                           fileWriter.onerror = (e) => reject(e);
-                          // Write raw ArrayBuffer directly (Cordova FileWriter handles ArrayBuffer reliably across all Android WebViews)
                           try {
                             fileWriter.write(uint8Bytes.buffer);
                           } catch (bErr) {
